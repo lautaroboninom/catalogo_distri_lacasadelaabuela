@@ -2,12 +2,13 @@ import { Link, Outlet, useLocation } from 'react-router-dom';
 import { ShoppingCart, LogIn, Store, Settings, LogOut, Menu, X } from 'lucide-react';
 import { useCart } from '../../context/CartContext';
 import { useEffect, useState } from 'react';
-import { auth, signInWithGoogle, logOut } from '../../firebase';
+import { auth, signInWithGoogle, logOut, getAuthErrorMessage } from '../../firebase';
 import { onAuthStateChanged, User } from 'firebase/auth';
 
 export default function Layout() {
   const { totalItems } = useCart();
   const [user, setUser] = useState<User | null>(null);
+  const [authError, setAuthError] = useState<string | null>(null);
   const location = useLocation();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const closeMenu = () => setIsMobileMenuOpen(false);
@@ -16,6 +17,22 @@ export default function Layout() {
     const unsub = onAuthStateChanged(auth, setUser);
     return unsub;
   }, []);
+
+  useEffect(() => {
+    if (user) {
+      setAuthError(null);
+    }
+  }, [user]);
+
+  const handleSignIn = async () => {
+    setAuthError(null);
+    try {
+      await signInWithGoogle();
+      closeMenu();
+    } catch (error) {
+      setAuthError(getAuthErrorMessage(error));
+    }
+  };
 
   return (
     <div className="flex flex-col md:flex-row h-[100dvh] overflow-hidden font-sans bg-bg text-ink w-full">
@@ -112,13 +129,18 @@ export default function Layout() {
                 </button>
              </div>
           ) : (
-            <button
-              onClick={() => { signInWithGoogle(); closeMenu(); }}
-              className="flex items-center justify-center gap-2 w-full bg-primary text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-blue-700 transition-colors"
-            >
-              <LogIn className="w-4 h-4" />
-              <span>Ingresar</span>
-            </button>
+            <div className="space-y-2">
+              <button
+                onClick={() => { void handleSignIn(); }}
+                className="flex items-center justify-center gap-2 w-full bg-primary text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-blue-700 transition-colors"
+              >
+                <LogIn className="w-4 h-4" />
+                <span>Ingresar</span>
+              </button>
+              {authError && (
+                <p className="px-1 text-xs text-red-600 leading-snug">{authError}</p>
+              )}
+            </div>
           )}
         </div>
       </aside>

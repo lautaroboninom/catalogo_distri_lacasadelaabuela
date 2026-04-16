@@ -1,20 +1,32 @@
 import { useCart } from '../context/CartContext';
 import { Minus, Plus, Trash2, ArrowRight } from 'lucide-react';
-import { auth, db, handleFirestoreError, OperationType, signInWithGoogle } from '../firebase';
+import { auth, db, handleFirestoreError, OperationType, signInWithGoogle, getAuthErrorMessage } from '../firebase';
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
 import { useAuthState } from '../hooks/useAuthState';
 import { useNavigate } from 'react-router-dom';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 
 export default function CartPage() {
   const { items, updateQuantity, removeItem, totalItems, totalPrice, clearCart } = useCart();
   const { user } = useAuthState();
   const navigate = useNavigate();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [authError, setAuthError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (user) {
+      setAuthError(null);
+    }
+  }, [user]);
 
   const handleCheckout = async () => {
     if (!user) {
-      await signInWithGoogle();
+      setAuthError(null);
+      try {
+        await signInWithGoogle();
+      } catch (error) {
+        setAuthError(getAuthErrorMessage(error));
+      }
       return;
     }
 
@@ -152,6 +164,9 @@ export default function CartPage() {
           {user ? 'Generar Orden de Compra' : 'Ingresar para Ordenar'}
           <ArrowRight className="w-4 h-4" />
         </button>
+        {authError && (
+          <p className="text-xs text-red-200 mt-3 w-full lg:text-right">{authError}</p>
+        )}
       </div>
     </div>
   );

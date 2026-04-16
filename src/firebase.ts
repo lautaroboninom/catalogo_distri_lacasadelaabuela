@@ -1,5 +1,5 @@
 import { initializeApp } from 'firebase/app';
-import { getAuth, signInWithPopup, GoogleAuthProvider, signOut } from 'firebase/auth';
+import { AuthError, getAuth, signInWithPopup, signInWithRedirect, GoogleAuthProvider, signOut } from 'firebase/auth';
 import { getFirestore, enableIndexedDbPersistence } from 'firebase/firestore';
 
 import firebaseConfig from '../firebase-applet-config.json';
@@ -17,15 +17,56 @@ enableIndexedDbPersistence(db).catch((err) => {
   }
 });
 
-export const signInWithGoogle = () => {
+const MOBILE_DEVICE_REGEX = /Android|iPhone|iPad|iPod|Mobile/i;
+
+function isMobileBrowser() {
+  return typeof navigator !== 'undefined' && MOBILE_DEVICE_REGEX.test(navigator.userAgent);
+}
+
+export const signInWithGoogle = async () => {
     const provider = new GoogleAuthProvider();
     provider.setCustomParameters({
         prompt: 'select_account'
     });
-    return signInWithPopup(auth, provider);
+
+    if (isMobileBrowser()) {
+      await signInWithRedirect(auth, provider);
+      return;
+    }
+
+    try {
+      await signInWithPopup(auth, provider);
+    } catch (error) {
+      const authError = error as AuthError;
+      if (authError.code === 'auth/popup-blocked') {
+        await signInWithRedirect(auth, provider);
+        return;
+      }
+      throw error;
+    }
 }
 
 export const logOut = () => signOut(auth);
+
+export function getAuthErrorMessage(error: unknown): string {
+  const authError = error as Partial<AuthError> & { message?: string };
+  const currentHost = typeof window !== 'undefined' ? window.location.hostname : 'este dominio';
+
+  switch (authError.code) {
+    case 'auth/popup-closed-by-user':
+      return 'La ventana de Google se cerro antes de completar el ingreso. Volve a intentarlo.';
+    case 'auth/popup-blocked':
+      return 'El navegador bloqueo la ventana de ingreso. Habilita popups para este sitio.';
+    case 'auth/unauthorized-domain':
+      return `El dominio ${currentHost} no esta autorizado en Firebase Auth.`;
+    case 'auth/operation-not-allowed':
+      return 'Google no esta habilitado como proveedor en Firebase Authentication.';
+    case 'auth/network-request-failed':
+      return 'No hay conexion estable para iniciar sesion. Revisa internet e intenta de nuevo.';
+    default:
+      return authError.message || 'No se pudo iniciar sesion con Google.';
+  }
+}
 
 // Shared Types
 export interface Product {
