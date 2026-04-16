@@ -109,7 +109,10 @@ export default function AdminPage() {
 
   const handleAddDemoProduct = async () => {
     try {
-      const response = await fetch('/src/data/products.json');
+      const response = await fetch('/products.json');
+      if (!response.ok) {
+        throw new Error(`No se pudo cargar products.json (${response.status})`);
+      }
       const allProducts = await response.json();
       
       const confirmSeed = confirm(`¿Estás seguro de que deseas agregar ${allProducts.length} productos a la base de datos?\nEste proceso puede tomar unos segundos.`);
@@ -124,7 +127,7 @@ export default function AdminPage() {
       alert(`¡Se agregaron ${allProducts.length} productos con éxito!`);
     } catch (err) {
       console.error(err);
-      handleFirestoreError(err, OperationType.CREATE, 'products');
+      alert('No se pudo importar el catalogo. Revisa permisos de admin y que exista /products.json.');
     }
   };
 
