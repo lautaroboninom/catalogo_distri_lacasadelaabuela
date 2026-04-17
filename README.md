@@ -31,3 +31,47 @@ Esta aplicación ya está configurada para ser desplegada en Vercel en cualquier
 - **Módulo de Inflación:** Realiza un ajuste porcentual general que actualiza automáticamente todos los precios del catálogo en un clic.
 
 ¡Éxito con tu distribuidora!
+
+## Image Sync Pipeline (Firestore + Storage)
+
+This repo includes `scripts/sync_product_images.py` to resolve, generate, upload, and publish product images.
+
+### 1) Install Python dependencies
+
+```bash
+python -m pip install -r scripts/requirements-image-sync.txt
+```
+
+### 2) Required credentials
+
+- Firebase service account JSON with Firestore + Storage permissions
+- `OPENAI_API_KEY` environment variable (used for generic products and brand fallbacks)
+
+### 3) Pilot run (20 products)
+
+```bash
+python scripts/sync_product_images.py --service-account C:\path\service-account.json --pilot-limit 20
+```
+
+### 4) Full run
+
+```bash
+python scripts/sync_product_images.py --service-account C:\path\service-account.json
+```
+
+Artifacts are written under `artifacts/`:
+- `images-backup-YYYYMMDD-HHMMSS.json`
+- `images-report-YYYYMMDD-HHMMSS.csv`
+- `images-checkpoint.json`
+
+### 5) Resume an interrupted run
+
+```bash
+python scripts/sync_product_images.py --service-account C:\path\service-account.json --resume
+```
+
+### 6) Rollback from backup
+
+```bash
+python scripts/sync_product_images.py --service-account C:\path\service-account.json --rollback C:\path\images-backup-YYYYMMDD-HHMMSS.json
+```

@@ -1,6 +1,6 @@
 import { useCart } from '../context/CartContext';
 import { Minus, Plus, Trash2, ArrowRight } from 'lucide-react';
-import { auth, db, handleFirestoreError, OperationType, signInWithGoogle, getAuthErrorMessage } from '../firebase';
+import { db, handleFirestoreError, OperationType, signInWithGoogle, getAuthErrorMessage } from '../firebase';
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
 import { useAuthState } from '../hooks/useAuthState';
 import { useNavigate } from 'react-router-dom';
@@ -52,19 +52,30 @@ export default function CartPage() {
         }))
       };
 
-      await addDoc(collection(db, 'orders'), orderData);
+      const orderRef = await addDoc(collection(db, 'orders'), orderData);
       
       // WhatsApp Integration
-      const WHATSAPP_NUMBER = "5491100000000"; // Reemplazar con el número real de la distribuidora
-      const message = `*Nuevo Pedido Mayorista*\n\n` +
-        items.map(i => `• ${i.quantity}x ${i.product.name}`).join('\n') +
-        `\n\n*Subtotal con descuentos:* $${totalPrice.toFixed(2)}` +
-        `\n*Impuestos:* $${tax.toFixed(2)}` +
-        `\n*Total a pagar:* $${grandTotal.toFixed(2)}` +
-        `\n\n¡Gracias por tu pedido!`;
+      const WHATSAPP_NUMBER = "5491132983952";
+      const orderCode = orderRef.id.slice(0, 8).toUpperCase();
+      const message = `*Nuevo Pedido Mayorista*` +
+        `\n\n*Pedido:* #${orderCode}` +
+        `\n*Cliente:* ${user.email || 'sin email'}` +
+        `\n*Items:* ${totalItems}` +
+        `\n\n*Detalle:*` +
+        `\n${items.map(i => {
+          const unitPrice = i.product.offerPrice || i.product.price;
+          const lineTotal = unitPrice * i.quantity;
+          return `- ${i.quantity}x ${i.product.name} (SKU ${i.product.sku}) - $${lineTotal.toFixed(2)}`;
+        }).join('\n')}` +
+        `\n\n*Subtotal:* $${totalPrice.toFixed(2)}` +
+        `\n*Impuestos (12%):* $${tax.toFixed(2)}` +
+        `\n*Total:* $${grandTotal.toFixed(2)}`;
 
       const waUrl = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(message)}`;
-      window.open(waUrl, '_blank');
+      const waWindow = window.open(waUrl, '_blank', 'noopener,noreferrer');
+      if (!waWindow) {
+        window.location.href = waUrl;
+      }
 
       clearCart();
       navigate('/');
@@ -171,3 +182,4 @@ export default function CartPage() {
     </div>
   );
 }
+

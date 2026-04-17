@@ -79,6 +79,9 @@ export interface Product {
     cost: number;
     stock: number;
     imageUrl: string;
+    imageSourceType?: 'brand_web' | 'generated';
+    imageSourceUrl?: string;
+    imageUpdatedAt?: string;
     offerPrice?: number;
     isNew?: boolean;
     status: 'active' | 'inactive';
