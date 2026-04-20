@@ -1,6 +1,6 @@
 import { useCart } from '../context/CartContext';
-import { Minus, Plus, Trash2, ArrowRight } from 'lucide-react';
-import { db, handleFirestoreError, OperationType, signInWithGoogle, getAuthErrorMessage } from '../firebase';
+import { Minus, Plus, Trash2, ArrowRight, Mail, LogIn } from 'lucide-react';
+import { db, handleFirestoreError, OperationType, signInWithGoogle, signInWithEmailPassword, getAuthErrorMessage } from '../firebase';
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
 import { useAuthState } from '../hooks/useAuthState';
 import { useNavigate } from 'react-router-dom';
@@ -12,23 +12,53 @@ export default function CartPage() {
   const navigate = useNavigate();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [authError, setAuthError] = useState<string | null>(null);
+  const [authMode, setAuthMode] = useState<'google' | 'email'>('google');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [isAuthLoading, setIsAuthLoading] = useState(false);
 
   useEffect(() => {
     if (user) {
       setAuthError(null);
+      setPassword('');
+      setIsAuthLoading(false);
     }
   }, [user]);
 
-  const handleCheckout = async () => {
-    if (!user) {
-      setAuthError(null);
-      try {
-        await signInWithGoogle();
-      } catch (error) {
-        setAuthError(getAuthErrorMessage(error));
-      }
+  const handleGoogleSignIn = async () => {
+    setAuthError(null);
+    setAuthMode('google');
+    setIsAuthLoading(true);
+    try {
+      await signInWithGoogle();
+    } catch (error) {
+      setAuthError(getAuthErrorMessage(error));
+    } finally {
+      setIsAuthLoading(false);
+    }
+  };
+
+  const handleEmailSignIn = async () => {
+    if (!email.trim() || !password.trim()) {
+      setAuthError('Completa email y contrasena.');
       return;
     }
+
+    setAuthError(null);
+    setAuthMode('email');
+    setIsAuthLoading(true);
+    try {
+      await signInWithEmailPassword(email, password);
+      setPassword('');
+    } catch (error) {
+      setAuthError(getAuthErrorMessage(error));
+    } finally {
+      setIsAuthLoading(false);
+    }
+  };
+
+  const handleCheckout = async () => {
+    if (!user) return;
 
     if (items.length === 0) return;
     setIsSubmitting(true);
@@ -167,14 +197,72 @@ export default function CartPage() {
                 <p className="text-[15px] md:text-[18px] font-semibold text-accent">${grandTotal.toFixed(2)}</p>
             </div>
         </div>
-        <button
-          onClick={handleCheckout}
-          disabled={isSubmitting}
-          className="bg-primary text-white px-6 md:px-8 py-3.5 rounded-lg font-semibold text-[14px] hover:bg-blue-700 transition-colors whitespace-nowrap disabled:opacity-50 w-full lg:w-auto flex justify-center items-center gap-2"
-        >
-          {user ? 'Generar Orden de Compra' : 'Ingresar para Ordenar'}
-          <ArrowRight className="w-4 h-4" />
-        </button>
+        {user ? (
+          <button
+            onClick={handleCheckout}
+            disabled={isSubmitting}
+            className="bg-primary text-white px-6 md:px-8 py-3.5 rounded-lg font-semibold text-[14px] hover:bg-blue-700 transition-colors whitespace-nowrap disabled:opacity-50 w-full lg:w-auto flex justify-center items-center gap-2"
+          >
+            Generar Orden de Compra
+            <ArrowRight className="w-4 h-4" />
+          </button>
+        ) : (
+          <div className="w-full lg:w-auto min-w-[280px] space-y-2">
+            <button
+              onClick={() => {
+                void handleGoogleSignIn();
+              }}
+              disabled={isAuthLoading}
+              className="w-full bg-primary text-white px-6 py-3 rounded-lg font-semibold text-[14px] hover:bg-blue-700 transition-colors disabled:opacity-60 flex justify-center items-center gap-2"
+            >
+              <LogIn className="w-4 h-4" />
+              <span>{isAuthLoading && authMode === 'google' ? 'Ingresando...' : 'Ingresar con Google'}</span>
+            </button>
+            <button
+              onClick={() => {
+                setAuthError(null);
+                setAuthMode('email');
+              }}
+              className={`w-full px-6 py-3 rounded-lg font-semibold text-[14px] transition-colors border flex justify-center items-center gap-2 ${
+                authMode === 'email'
+                  ? 'bg-accent text-primary border-primary/30'
+                  : 'text-white/90 border-white/25 hover:bg-white/10'
+              }`}
+            >
+              <Mail className="w-4 h-4" />
+              <span>Ingresar con email</span>
+            </button>
+            {authMode === 'email' && (
+              <div className="space-y-2">
+                <input
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="Email"
+                  className="w-full rounded-lg px-3 py-2 text-sm bg-white text-ink border border-white/20"
+                  autoComplete="email"
+                />
+                <input
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="Contrasena"
+                  className="w-full rounded-lg px-3 py-2 text-sm bg-white text-ink border border-white/20"
+                  autoComplete="current-password"
+                />
+                <button
+                  onClick={() => {
+                    void handleEmailSignIn();
+                  }}
+                  disabled={isAuthLoading}
+                  className="w-full bg-white text-ink px-4 py-2 rounded-lg text-sm font-semibold hover:bg-white/90 transition-colors disabled:opacity-60"
+                >
+                  {isAuthLoading ? 'Verificando...' : 'Entrar con email'}
+                </button>
+              </div>
+            )}
+          </div>
+        )}
         {authError && (
           <p className="text-xs text-red-200 mt-3 w-full lg:text-right">{authError}</p>
         )}

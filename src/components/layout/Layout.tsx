@@ -1,14 +1,18 @@
 import { Link, Outlet, useLocation } from 'react-router-dom';
-import { ShoppingCart, LogIn, Store, Settings, LogOut, Menu, X } from 'lucide-react';
+import { ShoppingCart, LogIn, Store, Settings, LogOut, Menu, X, Mail } from 'lucide-react';
 import { useCart } from '../../context/CartContext';
 import { useEffect, useState } from 'react';
-import { auth, signInWithGoogle, logOut, getAuthErrorMessage } from '../../firebase';
+import { auth, signInWithGoogle, signInWithEmailPassword, logOut, getAuthErrorMessage } from '../../firebase';
 import { onAuthStateChanged, User } from 'firebase/auth';
 
 export default function Layout() {
   const { totalItems } = useCart();
   const [user, setUser] = useState<User | null>(null);
   const [authError, setAuthError] = useState<string | null>(null);
+  const [authMode, setAuthMode] = useState<'google' | 'email'>('google');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [isAuthLoading, setIsAuthLoading] = useState(false);
   const location = useLocation();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const closeMenu = () => setIsMobileMenuOpen(false);
@@ -21,16 +25,40 @@ export default function Layout() {
   useEffect(() => {
     if (user) {
       setAuthError(null);
+      setPassword('');
+      setIsAuthLoading(false);
     }
   }, [user]);
 
-  const handleSignIn = async () => {
+  const handleGoogleSignIn = async () => {
     setAuthError(null);
+    setIsAuthLoading(true);
     try {
       await signInWithGoogle();
       closeMenu();
     } catch (error) {
       setAuthError(getAuthErrorMessage(error));
+    } finally {
+      setIsAuthLoading(false);
+    }
+  };
+
+  const handleEmailSignIn = async () => {
+    if (!email.trim() || !password.trim()) {
+      setAuthError('Completa email y contrasena.');
+      return;
+    }
+
+    setAuthError(null);
+    setIsAuthLoading(true);
+    try {
+      await signInWithEmailPassword(email, password);
+      setPassword('');
+      closeMenu();
+    } catch (error) {
+      setAuthError(getAuthErrorMessage(error));
+    } finally {
+      setIsAuthLoading(false);
     }
   };
 
@@ -132,13 +160,58 @@ export default function Layout() {
             <div className="space-y-2">
               <button
                 onClick={() => {
-                  void handleSignIn();
+                  setAuthMode('google');
+                  void handleGoogleSignIn();
                 }}
-                className="flex items-center justify-center gap-2 w-full bg-primary text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-blue-700 transition-colors"
+                disabled={isAuthLoading}
+                className="flex items-center justify-center gap-2 w-full bg-primary text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-blue-700 transition-colors disabled:opacity-60"
               >
                 <LogIn className="w-4 h-4" />
-                <span>Ingresar</span>
+                <span>{isAuthLoading && authMode === 'google' ? 'Ingresando...' : 'Ingresar con Google'}</span>
               </button>
+              <button
+                onClick={() => {
+                  setAuthError(null);
+                  setAuthMode('email');
+                }}
+                className={`flex items-center justify-center gap-2 w-full px-4 py-2 rounded-lg text-sm font-semibold transition-colors border ${
+                  authMode === 'email'
+                    ? 'bg-accent text-primary border-primary/30'
+                    : 'bg-transparent text-ink border-border hover:bg-neutral-100'
+                }`}
+              >
+                <Mail className="w-4 h-4" />
+                <span>Ingresar con email</span>
+              </button>
+              {authMode === 'email' && (
+                <div className="space-y-2 pt-1">
+                  <input
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="Email"
+                    className="w-full border border-border rounded-lg px-3 py-2 text-sm bg-white text-ink"
+                    autoComplete="email"
+                  />
+                  <input
+                    type="password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder="Contrasena"
+                    className="w-full border border-border rounded-lg px-3 py-2 text-sm bg-white text-ink"
+                    autoComplete="current-password"
+                  />
+                  <button
+                    onClick={() => {
+                      void handleEmailSignIn();
+                    }}
+                    disabled={isAuthLoading}
+                    className="w-full bg-ink text-white px-4 py-2 rounded-lg text-sm font-semibold hover:opacity-90 transition-opacity disabled:opacity-60"
+                  >
+                    {isAuthLoading ? 'Verificando...' : 'Entrar con email'}
+                  </button>
+                </div>
+              )}
               {authError && <p className="px-1 text-xs text-red-600 leading-snug">{authError}</p>}
             </div>
           )}
@@ -151,4 +224,3 @@ export default function Layout() {
     </div>
   );
 }
-

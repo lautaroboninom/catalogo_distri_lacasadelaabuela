@@ -1,5 +1,13 @@
 import { initializeApp } from 'firebase/app';
-import { AuthError, getAuth, signInWithPopup, signInWithRedirect, GoogleAuthProvider, signOut } from 'firebase/auth';
+import {
+  AuthError,
+  getAuth,
+  signInWithPopup,
+  signInWithRedirect,
+  GoogleAuthProvider,
+  signOut,
+  signInWithEmailAndPassword
+} from 'firebase/auth';
 import { getFirestore, enableIndexedDbPersistence } from 'firebase/firestore';
 import { getStorage } from 'firebase/storage';
 
@@ -49,6 +57,8 @@ export const signInWithGoogle = async () => {
 }
 
 export const logOut = () => signOut(auth);
+export const signInWithEmailPassword = (email: string, password: string) =>
+  signInWithEmailAndPassword(auth, email.trim(), password);
 
 export function getAuthErrorMessage(error: unknown): string {
   const authError = error as Partial<AuthError> & { message?: string };
@@ -62,11 +72,20 @@ export function getAuthErrorMessage(error: unknown): string {
     case 'auth/unauthorized-domain':
       return `El dominio ${currentHost} no esta autorizado en Firebase Auth.`;
     case 'auth/operation-not-allowed':
-      return 'Google no esta habilitado como proveedor en Firebase Authentication.';
+      return 'El metodo de acceso no esta habilitado en Firebase Authentication.';
+    case 'auth/invalid-email':
+      return 'El email no tiene un formato valido.';
+    case 'auth/user-not-found':
+    case 'auth/invalid-credential':
+      return 'Email o contrasena incorrectos.';
+    case 'auth/wrong-password':
+      return 'La contrasena es incorrecta.';
+    case 'auth/too-many-requests':
+      return 'Demasiados intentos fallidos. Espera unos minutos e intenta otra vez.';
     case 'auth/network-request-failed':
       return 'No hay conexion estable para iniciar sesion. Revisa internet e intenta de nuevo.';
     default:
-      return authError.message || 'No se pudo iniciar sesion con Google.';
+      return authError.message || 'No se pudo iniciar sesion.';
   }
 }
 

@@ -21,7 +21,7 @@ Esta aplicación ya está configurada para ser desplegada en Vercel en cualquier
 5. Las configuraciones de ruteo (`vercel.json`) ya se encuentran incorporadas, garantizando que el enrutamiento funcione sin errores "404".
 6. Haz clic en **Deploy**. ¡Tu app estará viva en minutos!
 
-*(Nota: Las variables de entorno de Firebase en este proyecto se proveen explícitamente en el archivo de configuración `firebase-applet-config.json` en tiempo de compilación y es seguro para una SPA en el cliente de acuerdo a las políticas de Firebase, ya que los accesos seguros están definidos en las Reglas de Seguridad de Firestore `firestore.rules`).*
+*(Nota: este proyecto ahora prioriza variables de entorno `VITE_FIREBASE_*` para permitir separación de proyecto Firebase por app. Si no están definidas, usa fallback `firebase-applet-config.json`.)*
 
 ## 🛠️ Panel de Administración (`/admin`)
 
@@ -31,6 +31,24 @@ Esta aplicación ya está configurada para ser desplegada en Vercel en cualquier
 - **Módulo de Inflación:** Realiza un ajuste porcentual general que actualiza automáticamente todos los precios del catálogo en un clic.
 
 ¡Éxito con tu distribuidora!
+
+## Firebase separado por app
+
+Para evitar impacto cruzado con otras apps (por ejemplo turnos), configura este catálogo con un proyecto Firebase propio.
+
+### Variables frontend (Vercel / local)
+
+Definir en Vercel para este proyecto:
+- `VITE_FIREBASE_PROJECT_ID`
+- `VITE_FIREBASE_APP_ID`
+- `VITE_FIREBASE_API_KEY`
+- `VITE_FIREBASE_AUTH_DOMAIN`
+- `VITE_FIREBASE_DATABASE_ID`
+- `VITE_FIREBASE_STORAGE_BUCKET`
+- `VITE_FIREBASE_MESSAGING_SENDER_ID`
+- `VITE_FIREBASE_MEASUREMENT_ID` (opcional)
+
+Puedes usar `.env.example` como plantilla local.
 
 ## Image Sync Pipeline (Firestore + Storage)
 
@@ -45,18 +63,23 @@ python -m pip install -r scripts/requirements-image-sync.txt
 ### 2) Required credentials
 
 - Firebase service account JSON with Firestore + Storage permissions
-- `OPENAI_API_KEY` environment variable (used for generic products and brand fallbacks)
+- `GEMINI_API_KEY` environment variable (used for generic products and brand fallbacks)
+- Target Firebase environment for this catalog:
+  - `FIREBASE_PROJECT_ID`
+  - `FIREBASE_DATABASE_ID`
+  - `FIREBASE_STORAGE_BUCKET`
+- Optional: `--image-backend openai` (requires `OPENAI_API_KEY`) or `--image-backend local` (no model API calls)
 
 ### 3) Pilot run (20 products)
 
 ```bash
-python scripts/sync_product_images.py --service-account C:\path\service-account.json --pilot-limit 20
+python scripts/sync_product_images.py --service-account C:\path\service-account.json --image-backend gemini --project-id YOUR_FIREBASE_PROJECT_ID --database-id YOUR_FIREBASE_DATABASE_ID --bucket YOUR_FIREBASE_STORAGE_BUCKET --pilot-limit 20
 ```
 
 ### 4) Full run
 
 ```bash
-python scripts/sync_product_images.py --service-account C:\path\service-account.json
+python scripts/sync_product_images.py --service-account C:\path\service-account.json --image-backend gemini --project-id YOUR_FIREBASE_PROJECT_ID --database-id YOUR_FIREBASE_DATABASE_ID --bucket YOUR_FIREBASE_STORAGE_BUCKET
 ```
 
 Artifacts are written under `artifacts/`:
@@ -67,7 +90,7 @@ Artifacts are written under `artifacts/`:
 ### 5) Resume an interrupted run
 
 ```bash
-python scripts/sync_product_images.py --service-account C:\path\service-account.json --resume
+python scripts/sync_product_images.py --service-account C:\path\service-account.json --image-backend gemini --project-id YOUR_FIREBASE_PROJECT_ID --database-id YOUR_FIREBASE_DATABASE_ID --bucket YOUR_FIREBASE_STORAGE_BUCKET --resume
 ```
 
 ### 6) Rollback from backup
