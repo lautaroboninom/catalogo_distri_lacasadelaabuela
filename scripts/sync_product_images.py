@@ -3,7 +3,7 @@
 Sync product images end-to-end:
 - Reads products from Firestore.
 - Resolves brand images from local overrides -> Open Food Facts -> Wikimedia -> Bing.
-- Generates generic images with OpenAI Images API when brand resolution is not possible.
+- Generates generic images with Gemini (default) or OpenAI when brand resolution is not possible.
 - Normalizes image to 800x800 JPEG.
 - Uploads files to Firebase Storage at products/{sku}.jpg.
 - Updates Firestore product docs with image metadata.
@@ -36,7 +36,7 @@ from pathlib import Path
 from typing import Any, Dict, Iterable, List, Optional, Sequence, Set, Tuple
 
 import requests
-from PIL import Image, ImageOps
+from PIL import Image, ImageDraw, ImageOps
 
 try:
     import firebase_admin
@@ -52,6 +52,7 @@ OFF_SEARCH_URL = "https://world.openfoodfacts.org/cgi/search.pl"
 WIKIMEDIA_API_URL = "https://commons.wikimedia.org/w/api.php"
 BING_IMAGES_URL = "https://www.bing.com/images/search"
 OPENAI_IMAGES_URL = "https://api.openai.com/v1/images/generations"
+GEMINI_GENERATE_CONTENT_URL = "https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
 
 HTTP_TIMEOUT = 25
 HTTP_MAX_RETRIES = 3
@@ -255,14 +256,30 @@ class ImageSyncPipeline:
         self.processed_ids: Set[str] = set()
         self.db = None
         self.bucket = None
+        self.target_project_id = ""
+        self.target_database_id = ""
+        self.target_bucket_name = ""
+        self.brand_min_score = float(args.brand_min_score)
         self.config = self._load_firebase_config()
+        self.image_backend = args.image_backend
+        self.gemini_api_key = args.gemini_api_key or os.getenv("GEMINI_API_KEY", "")
+        self.gemini_image_model = args.gemini_image_model
         self.openai_api_key = args.openai_api_key or os.getenv("OPENAI_API_KEY", "")
+        if self.image_backend == "gemini" and not self.gemini_api_key:
+            raise PipelineError("GEMINI_API_KEY is required when --image-backend=gemini.")
+        if self.image_backend == "openai" and not self.openai_api_key:
+            raise PipelineError("OPENAI_API_KEY is required when --image-backend=openai.")
         self._bootstrap_local_overrides()
 
     def _load_firebase_config(self) -> Dict[str, Any]:
-        config_path = self.repo_root / "firebase-applet-config.json"
+        config_name = (self.args.firebase_config or "firebase-applet-config.json").strip()
+        config_path = Path(config_name)
+        if not config_path.is_absolute():
+            config_path = self.repo_root / config_name
         if not config_path.exists():
-            raise PipelineError(f"Firebase config not found: {config_path}")
+            if self.args.firebase_config:
+                raise PipelineError(f"Firebase config not found: {config_path}")
+            return {}
         with config_path.open("r", encoding="utf-8") as f:
             return json.load(f)
 
@@ -330,14 +347,27 @@ class ImageSyncPipeline:
         if not svc.exists():
             raise PipelineError(f"Service account file not found: {svc}")
 
-        project_id = self.args.project_id or self.config.get("projectId")
-        database_id = self.args.database_id or self.config.get("firestoreDatabaseId")
-        bucket_name = self.args.bucket or self.config.get("storageBucket")
+        project_id = self.args.project_id or os.getenv("FIREBASE_PROJECT_ID", "") or self.config.get("projectId")
+        database_id = self.args.database_id or os.getenv("FIREBASE_DATABASE_ID", "") or self.config.get("firestoreDatabaseId")
+        bucket_name = self.args.bucket or os.getenv("FIREBASE_STORAGE_BUCKET", "") or self.config.get("storageBucket")
+        if not project_id:
+            raise PipelineError(
+                "Missing Firebase projectId. Use --project-id, FIREBASE_PROJECT_ID, or --firebase-config."
+            )
+        if not database_id:
+            raise PipelineError(
+                "Missing Firestore databaseId. Use --database-id, FIREBASE_DATABASE_ID, or --firebase-config."
+            )
         if not bucket_name:
-            raise PipelineError("Missing storage bucket. Use --bucket or set storageBucket in firebase-applet-config.json.")
+            raise PipelineError(
+                "Missing storage bucket. Use --bucket, FIREBASE_STORAGE_BUCKET, or --firebase-config."
+            )
 
         cred = credentials.Certificate(str(svc))
         options: Dict[str, Any] = {"projectId": project_id, "storageBucket": bucket_name}
+        self.target_project_id = project_id
+        self.target_database_id = database_id
+        self.target_bucket_name = bucket_name
 
         if not firebase_admin._apps:
             firebase_admin.initialize_app(cred, options=options)
@@ -403,6 +433,9 @@ class ImageSyncPipeline:
                 )
             )
         out.sort(key=lambda p: (p.sku.lower(), p.name.lower()))
+        if self.args.only_source_type:
+            wanted = self.args.only_source_type.strip().lower()
+            out = [p for p in out if str(p.raw.get("imageSourceType", "")).strip().lower() == wanted]
         if self.args.pilot_limit:
             out = out[: self.args.pilot_limit]
         elif self.args.limit:
@@ -752,22 +785,79 @@ class ImageSyncPipeline:
             return "generic", None
         return "generic", None
 
-    def _generate_generic_image(self, product: ProductRecord) -> bytes:
-        if not self.openai_api_key:
-            raise PipelineError("OPENAI_API_KEY is required for generic image generation.")
-        key = normalize_text(product.name)
-        if key in self.generated_cache:
-            return self.generated_cache[key]
-
-        prompt = (
+    def _generation_prompt(self, product: ProductRecord) -> str:
+        return (
             "Packshot studio photo of a generic grocery product. "
             f"Product description: {product.name}. "
             "Neutral white background, centered item, realistic packaging style, "
             "no brand logos, no fictional brand text, no watermark."
         )
+
+    def _generation_source_prefix(self) -> str:
+        if self.image_backend == "gemini":
+            return f"gemini:{self.gemini_image_model}"
+        if self.image_backend == "openai":
+            return f"openai:{self.args.openai_image_model}"
+        return "local:placeholder"
+
+    def _extract_first_gemini_inline_image_bytes(self, payload: Any) -> Optional[bytes]:
+        queue: List[Any] = [payload]
+        while queue:
+            item = queue.pop(0)
+            if isinstance(item, dict):
+                for key in ("inline_data", "inlineData"):
+                    blob = item.get(key)
+                    if isinstance(blob, dict):
+                        data = blob.get("data")
+                        if isinstance(data, str) and data.strip():
+                            try:
+                                return base64.b64decode(data)
+                            except Exception:
+                                pass
+                queue.extend(item.values())
+            elif isinstance(item, list):
+                queue.extend(item)
+        return None
+
+    def _generate_generic_image_gemini(self, product: ProductRecord) -> bytes:
+        if not self.gemini_api_key:
+            raise PipelineError("GEMINI_API_KEY is required for Gemini image generation.")
+
+        url = GEMINI_GENERATE_CONTENT_URL.format(model=self.gemini_image_model)
+        payload = {
+            "contents": [
+                {
+                    "parts": [
+                        {"text": self._generation_prompt(product)},
+                    ]
+                }
+            ],
+            "generationConfig": {
+                "responseModalities": ["Image"],
+                "imageConfig": {
+                    "aspectRatio": "1:1",
+                },
+            },
+        }
+        headers = {
+            "x-goog-api-key": self.gemini_api_key,
+            "Content-Type": "application/json",
+        }
+        resp = self._request("POST", url, headers=headers, json=payload)
+        if not resp.ok:
+            raise PipelineError(f"Gemini image generation failed ({resp.status_code}): {resp.text[:300]}")
+        data = resp.json()
+        raw_bytes = self._extract_first_gemini_inline_image_bytes(data)
+        if not raw_bytes:
+            raise PipelineError("Gemini response did not contain inline image data.")
+        return self._process_image_bytes(raw_bytes)
+
+    def _generate_generic_image_openai(self, product: ProductRecord) -> bytes:
+        if not self.openai_api_key:
+            raise PipelineError("OPENAI_API_KEY is required for OpenAI image generation.")
         payload = {
             "model": self.args.openai_image_model,
-            "prompt": prompt,
+            "prompt": self._generation_prompt(product),
             "size": "1024x1024",
             "response_format": "b64_json",
         }
@@ -793,7 +883,28 @@ class ImageSyncPipeline:
                 raw_bytes = self._download_candidate_bytes(str(url))
         if not raw_bytes:
             raise PipelineError("OpenAI image response did not include a usable image.")
-        processed = self._process_image_bytes(raw_bytes)
+        return self._process_image_bytes(raw_bytes)
+
+    def _generate_generic_image_local(self, product: ProductRecord) -> bytes:
+        canvas = Image.new("RGB", (IMAGE_TARGET_SIZE, IMAGE_TARGET_SIZE), (245, 247, 252))
+        draw = ImageDraw.Draw(canvas)
+        draw.rectangle([(40, 40), (760, 760)], outline=(180, 190, 210), width=4)
+        label = (product.name or product.sku or "producto").strip().upper()[:48]
+        draw.text((80, 360), label, fill=(30, 40, 60))
+        out = io.BytesIO()
+        canvas.save(out, format="JPEG", quality=90, optimize=True, progressive=True)
+        return out.getvalue()
+
+    def _generate_generic_image(self, product: ProductRecord) -> bytes:
+        key = f"{self.image_backend}:{normalize_text(product.name)}"
+        if key in self.generated_cache:
+            return self.generated_cache[key]
+        if self.image_backend == "gemini":
+            processed = self._generate_generic_image_gemini(product)
+        elif self.image_backend == "openai":
+            processed = self._generate_generic_image_openai(product)
+        else:
+            processed = self._generate_generic_image_local(product)
         self.generated_cache[key] = processed
         return processed
 
@@ -802,23 +913,37 @@ class ImageSyncPipeline:
             ("local_override", self._resolve_local_candidates),
             ("openfoodfacts", self._resolve_openfoodfacts_candidates),
             ("wikimedia", self._resolve_wikimedia_candidates),
-            ("bing", self._resolve_bing_candidates),
         ]
+        if self.args.allow_bing:
+            providers.append(("bing", self._resolve_bing_candidates))
+        accepted: List[CandidateImage] = []
+        seen_urls: Set[str] = set()
         for provider_name, provider in providers:
             candidates = provider(product, brand)
             if self.args.debug:
                 print(f"[debug] {product.sku} {provider_name}: {len(candidates)} candidate(s)")
             for candidate in candidates:
-                try:
-                    raw = self._download_candidate_bytes(candidate.url)
-                    processed = self._process_image_bytes(raw)
-                    self.brand_memory[brand].append(candidate)
-                    return processed, candidate.url
-                except Exception:
+                if candidate.url in seen_urls:
                     continue
+                seen_urls.add(candidate.url)
+                if provider_name != "local_override" and candidate.score < self.brand_min_score:
+                    continue
+                accepted.append(candidate)
+
+        accepted.sort(key=lambda c: c.score, reverse=True)
+        for candidate in accepted:
+            try:
+                raw = self._download_candidate_bytes(candidate.url)
+                processed = self._process_image_bytes(raw)
+                self.brand_memory[brand].append(candidate)
+                return processed, candidate.url
+            except Exception:
+                continue
 
         memory_candidates = self.brand_memory.get(brand, [])
         for candidate in sorted(memory_candidates, key=lambda c: c.score, reverse=True):
+            if candidate.score < self.brand_min_score:
+                continue
             try:
                 raw = self._download_candidate_bytes(candidate.url)
                 processed = self._process_image_bytes(raw)
@@ -830,6 +955,10 @@ class ImageSyncPipeline:
     def run_sync(self) -> None:
         self._init_firebase()
         self._load_checkpoint()
+        print(
+            f"Target Firebase => project={self.target_project_id} "
+            f"database={self.target_database_id} bucket={self.target_bucket_name}"
+        )
         products = self._fetch_products()
         if not products:
             print("No products found in Firestore.")
@@ -860,11 +989,11 @@ class ImageSyncPipeline:
                         jpeg_bytes, source_detail = self._resolve_brand_image(product, brand)
                     except Exception:
                         source_type = "generated"
-                        source_detail = f"openai:{self.args.openai_image_model}:fallback_for_brand:{brand}"
+                        source_detail = f"{self._generation_source_prefix()}:fallback_for_brand:{brand}"
                         jpeg_bytes = self._generate_generic_image(product)
                 else:
                     source_type = "generated"
-                    source_detail = f"openai:{self.args.openai_image_model}"
+                    source_detail = self._generation_source_prefix()
                     jpeg_bytes = self._generate_generic_image(product)
 
                 storage_path, download_url = self._upload_to_storage(product.sku, jpeg_bytes)
@@ -900,6 +1029,10 @@ class ImageSyncPipeline:
 
     def run_rollback(self) -> None:
         self._init_firebase()
+        print(
+            f"Target Firebase => project={self.target_project_id} "
+            f"database={self.target_database_id} bucket={self.target_bucket_name}"
+        )
         rollback_path = Path(self.args.rollback).expanduser().resolve()
         if not rollback_path.exists():
             raise PipelineError(f"Rollback file does not exist: {rollback_path}")
@@ -980,14 +1113,34 @@ def utc_now_iso() -> str:
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Sync product images to Firebase Storage + Firestore.")
+    parser.add_argument(
+        "--firebase-config",
+        default="firebase-applet-config.json",
+        help="Path to Firebase config JSON (optional if FIREBASE_* env vars are set).",
+    )
     parser.add_argument("--service-account", default="", help="Path to Firebase service account JSON file.")
     parser.add_argument("--project-id", default="", help="Firebase project ID override.")
     parser.add_argument("--database-id", default="", help="Firestore database ID override.")
     parser.add_argument("--bucket", default="", help="Firebase Storage bucket override.")
+    parser.add_argument(
+        "--image-backend",
+        choices=["gemini", "openai", "local"],
+        default="gemini",
+        help="Backend for generated images (default: gemini).",
+    )
+    parser.add_argument("--gemini-api-key", default="", help="Gemini API key override (defaults to GEMINI_API_KEY).")
+    parser.add_argument(
+        "--gemini-image-model",
+        default="gemini-2.5-flash-image",
+        help="Gemini image model for generic items.",
+    )
     parser.add_argument("--openai-api-key", default="", help="OpenAI API key override (defaults to OPENAI_API_KEY).")
     parser.add_argument("--openai-image-model", default="gpt-image-1", help="OpenAI image model for generic items.")
     parser.add_argument("--pilot-limit", type=int, default=0, help="Process only first N products (pilot).")
     parser.add_argument("--limit", type=int, default=0, help="Process only first N products.")
+    parser.add_argument("--only-source-type", default="", help="Process only products with this imageSourceType.")
+    parser.add_argument("--brand-min-score", type=float, default=0.62, help="Minimum score for brand web candidates.")
+    parser.add_argument("--allow-bing", action="store_true", help="Allow Bing as image source (disabled by default).")
     parser.add_argument("--resume", action="store_true", help="Resume from checkpoint file.")
     parser.add_argument("--dry-run", action="store_true", help="Resolve/upload/report but skip Firestore updates.")
     parser.add_argument("--rollback", default="", help="Rollback from backup JSON file.")
@@ -1001,8 +1154,8 @@ def parse_args() -> argparse.Namespace:
 
 def main() -> int:
     args = parse_args()
-    pipeline = ImageSyncPipeline(args)
     try:
+        pipeline = ImageSyncPipeline(args)
         if args.rollback:
             pipeline.run_rollback()
         else:

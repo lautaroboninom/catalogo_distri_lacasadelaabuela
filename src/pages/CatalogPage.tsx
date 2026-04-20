@@ -46,9 +46,9 @@ export default function CatalogPage() {
   });
 
   return (
-    <div className="flex-1 flex flex-col p-8">
-      <header className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 gap-4">
-        <h1 className="text-3xl font-bold text-ink">Catálogo de Productos</h1>
+    <div className="flex-1 flex flex-col p-3 sm:p-8">
+      <header className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 sm:mb-8 gap-3 sm:gap-4">
+        <h1 className="text-2xl sm:text-3xl font-bold text-ink">Catálogo de Productos</h1>
         <input 
           type="text" 
           value={search}
@@ -59,7 +59,7 @@ export default function CatalogPage() {
       </header>
 
       {/* Categories */}
-      <div className="mb-8 overflow-x-auto pb-2 hide-scrollbar">
+      <div className="mb-4 sm:mb-8 overflow-x-auto pb-2 hide-scrollbar">
         <div className="flex gap-2">
           {CATEGORIES.map(category => (
             <button
@@ -83,7 +83,7 @@ export default function CatalogPage() {
       ) : filteredProducts.length === 0 ? (
         <div className="text-center py-20 text-ink-muted">No hay productos disponibles por ahora.</div>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 flex-1">
+        <div className="grid grid-cols-3 sm:grid-cols-3 gap-2 sm:gap-5 flex-1">
           {filteredProducts.map(product => {
             const inCart = items.find(i => i.product.id === product.id)?.quantity || 0;
             
@@ -99,15 +99,15 @@ export default function CatalogPage() {
             const promo = matchingPromos[0];
 
             return (
-              <div key={product.id} className="bg-surface border border-border rounded-xl p-4 flex flex-col relative transition-shadow hover:shadow-md">
+              <div key={product.id} className="bg-surface border border-border rounded-lg sm:rounded-xl p-2 sm:p-4 flex flex-col relative transition-shadow hover:shadow-md">
                 {promo && (
-                  <div className="absolute top-4 left-4 z-10">
+                  <div className="absolute top-2 left-2 sm:top-4 sm:left-4 z-10 hidden sm:block">
                     <span className="bg-emerald-100 text-emerald-800 text-[10px] font-bold px-2 py-1 rounded-full uppercase shadow-sm">
                       {promo.type === 'volume' ? `${promo.buyQuantity}x${promo.payQuantity}` : `${promo.value}% OFF`}
                     </span>
                   </div>
                 )}
-                <div className="w-full h-[140px] bg-bg rounded-lg mb-4 flex items-center justify-center overflow-hidden">
+                <div className="w-full h-[84px] sm:h-[140px] bg-bg rounded-md sm:rounded-lg mb-2 sm:mb-4 flex items-center justify-center overflow-hidden">
                   <img 
                     src={product.imageUrl || `https://picsum.photos/seed/${product.id}/400/400`} 
                     alt={product.name} 
@@ -116,27 +116,27 @@ export default function CatalogPage() {
                   />
                 </div>
                 
-                <div className="text-[11px] text-ink-muted mb-1">
+                <div className="hidden sm:block text-[11px] text-ink-muted mb-1">
                   SKU: {product.sku}
                 </div>
                 
-                <div className="font-semibold text-[15px] mb-2 text-ink">
+                <div className="font-semibold text-[11px] sm:text-[15px] leading-tight mb-1 sm:mb-2 text-ink min-h-[28px] sm:min-h-0">
                   {product.name}
                 </div>
                 
-                <div className="text-[18px] font-bold text-primary mt-auto">
+                <div className="text-[11px] sm:text-[18px] font-bold text-primary mt-auto">
                   ${(product.offerPrice || product.price).toFixed(2)}
                 </div>
 
                 <button
                   onClick={() => addItem(product, 1)}
-                  className="absolute bottom-4 right-4 w-8 h-8 rounded-full bg-primary text-white flex items-center justify-center hover:bg-blue-700 transition-colors"
+                  className="absolute bottom-2 right-2 sm:bottom-4 sm:right-4 w-6 h-6 sm:w-8 sm:h-8 rounded-full bg-primary text-white flex items-center justify-center hover:bg-blue-700 transition-colors"
                   title="Agregar al pedido"
                 >
-                  <Plus className="w-5 h-5" />
+                  <Plus className="w-4 h-4 sm:w-5 sm:h-5" />
                 </button>
                 {inCart > 0 && (
-                  <span className="absolute top-4 right-4 bg-primary text-white text-[10px] font-bold px-2 py-1 rounded-full uppercase">
+                  <span className="absolute top-2 right-2 sm:top-4 sm:right-4 bg-primary text-white text-[9px] sm:text-[10px] font-bold px-1.5 py-0.5 sm:px-2 sm:py-1 rounded-full uppercase">
                     {inCart} en pedido
                   </span>
                 )}
