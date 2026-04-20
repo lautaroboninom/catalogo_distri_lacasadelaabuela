@@ -1,12 +1,14 @@
 import { initializeApp } from 'firebase/app';
 import { AuthError, getAuth, signInWithPopup, signInWithRedirect, GoogleAuthProvider, signOut } from 'firebase/auth';
 import { getFirestore, enableIndexedDbPersistence } from 'firebase/firestore';
+import { getStorage } from 'firebase/storage';
 
 import firebaseConfig from './firebaseConfig';
 
 export const app = initializeApp(firebaseConfig);
 export const auth = getAuth();
 export const db = getFirestore(app, firebaseConfig.firestoreDatabaseId);
+export const storage = getStorage(app);
 
 // Enable offline persistence if we want, ignoring errors if multiple tabs open
 enableIndexedDbPersistence(db).catch((err) => {
@@ -79,7 +81,7 @@ export interface Product {
     cost: number;
     stock: number;
     imageUrl: string;
-    imageSourceType?: 'brand_web' | 'generated';
+    imageSourceType?: 'brand_web' | 'generated' | 'admin_upload';
     imageSourceUrl?: string;
     imageUpdatedAt?: string;
     offerPrice?: number;
