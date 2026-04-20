@@ -1,0 +1,10 @@
+node_modules/
+dist/
+artifacts/
+scripts/__pycache__/
+*.pyc
+
+.env
+.env.*
+!.env.example
+*-adminsdk-*.json

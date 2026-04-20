@@ -2,7 +2,7 @@ import { initializeApp } from 'firebase/app';
 import { AuthError, getAuth, signInWithPopup, signInWithRedirect, GoogleAuthProvider, signOut } from 'firebase/auth';
 import { getFirestore, enableIndexedDbPersistence } from 'firebase/firestore';
 
-import firebaseConfig from '../firebase-applet-config.json';
+import firebaseConfig from './firebaseConfig';
 
 export const app = initializeApp(firebaseConfig);
 export const auth = getAuth();
