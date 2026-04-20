@@ -36,7 +36,6 @@ export default function Layout() {
 
   return (
     <div className="flex flex-col md:flex-row h-[100dvh] overflow-hidden font-sans bg-bg text-ink w-full">
-      {/* Mobile Header */}
       <header className="md:hidden flex items-center justify-between p-4 bg-surface border-b border-border z-20 flex-shrink-0">
         <Link to="/" className="text-lg font-extrabold tracking-tight text-primary flex items-center gap-2" onClick={closeMenu}>
           <Store className="w-5 h-5" /> DISTRI-CORP
@@ -46,18 +45,22 @@ export default function Layout() {
         </button>
       </header>
 
-      {/* Mobile Menu Overlay */}
       {isMobileMenuOpen && (
         <div className="fixed inset-0 bg-ink/20 z-40 md:hidden backdrop-blur-sm" onClick={closeMenu} />
       )}
 
-      {/* Sidebar */}
-      <aside className={`fixed inset-y-0 left-0 z-50 w-64 border-r border-border bg-surface p-6 flex flex-col flex-shrink-0 transition-transform duration-300 md:static md:translate-x-0 ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'}`}>
+      <aside
+        className={`fixed inset-y-0 left-0 z-50 w-64 border-r border-border bg-surface p-6 flex flex-col flex-shrink-0 transition-transform duration-300 md:static md:translate-x-0 ${
+          isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'
+        }`}
+      >
         <div className="flex items-center justify-between md:hidden mb-8">
           <Link to="/" className="text-xl font-extrabold tracking-tight text-primary flex items-center gap-2" onClick={closeMenu}>
             <Store className="w-6 h-6" /> DISTRI-CORP
           </Link>
-          <button onClick={closeMenu}><X className="w-6 h-6 text-ink-muted"/></button>
+          <button onClick={closeMenu}>
+            <X className="w-6 h-6 text-ink-muted" />
+          </button>
         </div>
 
         <Link to="/" className="hidden md:flex text-xl font-extrabold tracking-tight text-primary mb-10 items-center gap-2" onClick={closeMenu}>
@@ -66,16 +69,12 @@ export default function Layout() {
         </Link>
 
         <div className="mb-8 overflow-y-auto">
-          <div className="text-[11px] uppercase tracking-wider text-ink-muted mb-3 font-semibold">
-            Navegación
-          </div>
+          <div className="text-[11px] uppercase tracking-wider text-ink-muted mb-3 font-semibold">Navegación</div>
           <Link
             to="/"
             onClick={closeMenu}
             className={`block px-3 py-2 rounded-md text-sm mb-1 transition-colors ${
-              location.pathname === '/' 
-                ? 'bg-accent text-primary font-semibold' 
-                : 'text-ink hover:bg-neutral-100'
+              location.pathname === '/' ? 'bg-accent text-primary font-semibold' : 'text-ink hover:bg-neutral-100'
             }`}
           >
             Catálogo
@@ -84,9 +83,7 @@ export default function Layout() {
             to="/cart"
             onClick={closeMenu}
             className={`flex items-center justify-between px-3 py-2 rounded-md text-sm mb-1 transition-colors ${
-              location.pathname === '/cart' 
-                ? 'bg-accent text-primary font-semibold' 
-                : 'text-ink hover:bg-neutral-100'
+              location.pathname === '/cart' ? 'bg-accent text-primary font-semibold' : 'text-ink hover:bg-neutral-100'
             }`}
           >
             <div className="flex items-center gap-2">
@@ -99,15 +96,13 @@ export default function Layout() {
               </span>
             )}
           </Link>
-          
+
           {user && (
             <Link
               to="/admin"
               onClick={closeMenu}
               className={`flex items-center gap-2 px-3 py-2 rounded-md text-sm mb-1 transition-colors ${
-                location.pathname === '/admin' 
-                  ? 'bg-accent text-primary font-semibold' 
-                  : 'text-ink hover:bg-neutral-100'
+                location.pathname === '/admin' ? 'bg-accent text-primary font-semibold' : 'text-ink hover:bg-neutral-100'
               }`}
             >
               <Settings className="w-4 h-4" />
@@ -118,28 +113,33 @@ export default function Layout() {
 
         <div className="mt-auto pt-6 border-t border-border shrink-0">
           {user ? (
-             <div className="flex flex-col gap-3 text-sm">
-                <div className="px-3 text-ink-muted truncate" title={user.email || ''}>{user.email}</div>
-                <button
-                  onClick={() => { logOut(); closeMenu(); }}
-                  className="flex items-center gap-2 px-3 py-2 text-ink hover:bg-neutral-100 rounded-md transition-colors w-full text-left"
-                >
-                  <LogOut className="w-4 h-4" />
-                  <span>Cerrar sesión</span>
-                </button>
-             </div>
+            <div className="flex flex-col gap-3 text-sm">
+              <div className="px-3 text-ink-muted truncate" title={user.email || ''}>
+                {user.email}
+              </div>
+              <button
+                onClick={() => {
+                  logOut();
+                  closeMenu();
+                }}
+                className="flex items-center gap-2 px-3 py-2 text-ink hover:bg-neutral-100 rounded-md transition-colors w-full text-left"
+              >
+                <LogOut className="w-4 h-4" />
+                <span>Cerrar sesión</span>
+              </button>
+            </div>
           ) : (
             <div className="space-y-2">
               <button
-                onClick={() => { void handleSignIn(); }}
+                onClick={() => {
+                  void handleSignIn();
+                }}
                 className="flex items-center justify-center gap-2 w-full bg-primary text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-blue-700 transition-colors"
               >
                 <LogIn className="w-4 h-4" />
                 <span>Ingresar</span>
               </button>
-              {authError && (
-                <p className="px-1 text-xs text-red-600 leading-snug">{authError}</p>
-              )}
+              {authError && <p className="px-1 text-xs text-red-600 leading-snug">{authError}</p>}
             </div>
           )}
         </div>

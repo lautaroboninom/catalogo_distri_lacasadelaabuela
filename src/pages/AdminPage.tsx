@@ -182,72 +182,74 @@ export default function AdminPage() {
   if (!isAdmin) return null;
 
   return (
-    <div className="flex-1 p-4 md:p-8 overflow-y-auto">
+    <div className="flex-1 w-full min-w-0 max-w-full p-4 md:p-8 overflow-y-auto overflow-x-hidden">
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-6 gap-4">
         <h1 className="text-2xl md:text-3xl font-bold text-ink flex items-center gap-3">
           <Settings className="w-8 h-8 text-ink-muted" />
           Administración
         </h1>
-        <div className="flex bg-surface rounded-lg p-1 border border-border">
-          <button
-            onClick={() => setActiveTab('inventory')}
-            className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-colors ${
-              activeTab === 'inventory' ? 'bg-primary text-white' : 'text-ink-muted hover:text-ink'
-            }`}
-          >
-            <Package className="w-4 h-4" /> Inventario
-          </button>
-          <button
-            onClick={() => setActiveTab('promotions')}
-            className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-colors ${
-              activeTab === 'promotions' ? 'bg-primary text-white' : 'text-ink-muted hover:text-ink'
-            }`}
-          >
-            <Tag className="w-4 h-4" /> Promociones
-          </button>
-          <button
-            onClick={() => setActiveTab('inflation')}
-            className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-colors ${
-              activeTab === 'inflation' ? 'bg-primary text-white' : 'text-ink-muted hover:text-ink'
-            }`}
-          >
-            <TrendingUp className="w-4 h-4" /> Inflación
-          </button>
+        <div className="w-full sm:w-auto overflow-x-auto">
+          <div className="flex min-w-max bg-surface rounded-lg p-1 border border-border">
+            <button
+              onClick={() => setActiveTab('inventory')}
+              className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-colors whitespace-nowrap ${
+                activeTab === 'inventory' ? 'bg-primary text-white' : 'text-ink-muted hover:text-ink'
+              }`}
+            >
+              <Package className="w-4 h-4" /> Inventario
+            </button>
+            <button
+              onClick={() => setActiveTab('promotions')}
+              className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-colors whitespace-nowrap ${
+                activeTab === 'promotions' ? 'bg-primary text-white' : 'text-ink-muted hover:text-ink'
+              }`}
+            >
+              <Tag className="w-4 h-4" /> Promociones
+            </button>
+            <button
+              onClick={() => setActiveTab('inflation')}
+              className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-colors whitespace-nowrap ${
+                activeTab === 'inflation' ? 'bg-primary text-white' : 'text-ink-muted hover:text-ink'
+              }`}
+            >
+              <TrendingUp className="w-4 h-4" /> Inflación
+            </button>
+          </div>
         </div>
       </div>
 
       {activeTab === 'inventory' && (
-        <div className="bg-surface rounded-xl border border-border shadow-sm overflow-hidden flex flex-col">
+        <div className="w-full min-w-0 bg-surface rounded-xl border border-border shadow-sm overflow-hidden flex flex-col">
           <div className="p-4 border-b border-border flex justify-end">
             <button
               onClick={handleAddDemoProduct}
-              className="flex items-center gap-2 bg-primary text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-blue-700 transition-colors"
+              className="flex items-center gap-2 bg-primary text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-blue-700 transition-colors whitespace-nowrap"
             >
               <Plus className="w-4 h-4" /> Importar Catálogo Completo
             </button>
           </div>
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-sm whitespace-nowrap">
+          <div className="w-full overflow-x-auto">
+            <table className="w-full min-w-[980px] text-left text-sm table-auto">
               <thead className="bg-bg text-ink-muted border-b border-border font-semibold">
                 <tr>
-                  <th className="px-6 py-4">Producto</th>
-                  <th className="px-6 py-4">Imagen</th>
-                  <th className="px-6 py-4">Categoría</th>
-                  <th className="px-6 py-4">Costo</th>
-                  <th className="px-6 py-4">Precio venta</th>
-                  <th className="px-6 py-4">Stock</th>
-                  <th className="px-6 py-4 text-right">Acciones</th>
+                  <th className="px-6 py-4 min-w-[260px]">Producto</th>
+                  <th className="px-6 py-4 min-w-[180px]">Imagen</th>
+                  <th className="px-6 py-4 whitespace-nowrap">Categoría</th>
+                  <th className="px-6 py-4 whitespace-nowrap">Costo</th>
+                  <th className="px-6 py-4 whitespace-nowrap">Precio venta</th>
+                  <th className="px-6 py-4 whitespace-nowrap">Stock</th>
+                  <th className="px-6 py-4 text-right whitespace-nowrap">Acciones</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
                 {products.map((product) => (
                   <tr key={product.id} className="hover:bg-bg transition-colors">
                     <td className="px-6 py-4">
-                      <div className="font-semibold text-ink">{product.name}</div>
+                      <div className="font-semibold text-ink break-words">{product.name}</div>
                       <div className="text-[11px] text-ink-muted">SKU: {product.sku}</div>
                     </td>
                     <td className="px-6 py-4">
-                      <div className="flex items-center gap-3">
+                      <div className="flex items-center gap-2">
                         <div className="w-12 h-12 rounded-md overflow-hidden border border-border bg-bg flex-shrink-0">
                           <img
                             src={product.imageUrl || `https://picsum.photos/seed/${product.id}/120/120`}
@@ -255,7 +257,7 @@ export default function AdminPage() {
                             className="w-full h-full object-cover"
                           />
                         </div>
-                        <div className="flex flex-col gap-1">
+                        <div className="flex flex-col gap-1 min-w-0">
                           <label className="text-xs text-ink-muted cursor-pointer border border-border rounded px-2 py-1 hover:bg-neutral-100 w-fit">
                             Elegir
                             <input
@@ -273,7 +275,7 @@ export default function AdminPage() {
                           <button
                             disabled={!selectedImages[product.id] || uploadingImageFor === product.id}
                             onClick={() => handleUploadImage(product)}
-                            className="text-primary hover:text-blue-700 border border-border px-2 py-1 rounded-lg text-xs text-left disabled:opacity-40 disabled:cursor-not-allowed"
+                            className="text-primary hover:text-blue-700 border border-border px-2 py-1 rounded-lg text-xs text-left whitespace-nowrap disabled:opacity-40 disabled:cursor-not-allowed"
                           >
                             {uploadingImageFor === product.id ? 'Subiendo...' : 'Subir'}
                           </button>
