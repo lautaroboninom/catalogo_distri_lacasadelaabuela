@@ -4,7 +4,7 @@ import { db, Product, handleFirestoreError, OperationType } from '../firebase';
 import { ShoppingCart, Plus } from 'lucide-react';
 import { useCart } from '../context/CartContext';
 
-const CATEGORIES = ["Todas", "Cervezas", "Gaseosas", "AlmacÃ©n", "Aguas", "Aperitivos", "Vinos", "Petacas", "Fideos", "Arroz", "Pure", "Azucar", "Alfajores", "Turrones", "Galletitas", "Yerbas", "Golosinas", "Snack", "Cigarrillos", "Analgesicos", "Panificados"];
+const CATEGORIES = ["Todas", "Cervezas", "Gaseosas", "Almac\u00e9n", "Aguas", "Aperitivos", "Vinos", "Petacas", "Fideos", "Arroz", "Pure", "Azucar", "Alfajores", "Turrones", "Galletitas", "Yerbas", "Golosinas", "Snack", "Cigarrillos", "Analgesicos", "Panificados"];
 
 export default function CatalogPage() {
   const [products, setProducts] = useState<Product[]>([]);
@@ -48,7 +48,7 @@ export default function CatalogPage() {
   return (
     <div className="flex-1 flex flex-col p-8">
       <header className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 gap-4">
-        <h1 className="text-3xl font-bold text-ink">CatÃ¡logo de Productos</h1>
+        <h1 className="text-3xl font-bold text-ink">Cat\u00e1logo de Productos</h1>
         <input 
           type="text" 
           value={search}
@@ -77,7 +77,7 @@ export default function CatalogPage() {
       </div>
 
       {loading ? (
-        <div className="text-center py-20 text-ink-muted">Cargando catÃ¡logo...</div>
+        <div className="text-center py-20 text-ink-muted">Cargando cat\u00e1logo...</div>
       ) : loadError ? (
         <div className="text-center py-20 text-red-600">{loadError}</div>
       ) : filteredProducts.length === 0 ? (
