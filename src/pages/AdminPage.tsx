@@ -14,7 +14,7 @@ export default function AdminPage() {
   const [products, setProducts] = useState<Product[]>([]);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editForm, setEditForm] = useState<Partial<Product>>({});
-  const [selectedImage, setSelectedImage] = useState<File | null>(null);
+  const [selectedImages, setSelectedImages] = useState<Record<string, File | null>>({});
   const [uploadingImageFor, setUploadingImageFor] = useState<string | null>(null);
 
   const [promotions, setPromotions] = useState<Promotion[]>([]);
@@ -61,20 +61,19 @@ export default function AdminPage() {
   const handleEdit = (product: Product) => {
     setEditingId(product.id);
     setEditForm(product);
-    setSelectedImage(null);
   };
 
   const handleSave = async (id: string) => {
     try {
       await updateDoc(doc(db, 'products', id), editForm);
       setEditingId(null);
-      setSelectedImage(null);
     } catch (err) {
       handleFirestoreError(err, OperationType.UPDATE, `products/${id}`);
     }
   };
 
   const handleUploadImage = async (product: Product) => {
+    const selectedImage = selectedImages[product.id] || null;
     if (!selectedImage) return;
     if (!selectedImage.type.startsWith('image/')) {
       alert('El archivo seleccionado no es una imagen.');
@@ -99,7 +98,7 @@ export default function AdminPage() {
       });
 
       setEditForm((prev) => ({ ...prev, imageUrl }));
-      setSelectedImage(null);
+      setSelectedImages((prev) => ({ ...prev, [product.id]: null }));
     } catch (err) {
       handleFirestoreError(err, OperationType.UPDATE, `products/${product.id}`);
     } finally {
@@ -232,6 +231,7 @@ export default function AdminPage() {
               <thead className="bg-bg text-ink-muted border-b border-border font-semibold">
                 <tr>
                   <th className="px-6 py-4">Producto</th>
+                  <th className="px-6 py-4">Imagen</th>
                   <th className="px-6 py-4">Categoría</th>
                   <th className="px-6 py-4">Costo</th>
                   <th className="px-6 py-4">Precio venta</th>
@@ -245,6 +245,40 @@ export default function AdminPage() {
                     <td className="px-6 py-4">
                       <div className="font-semibold text-ink">{product.name}</div>
                       <div className="text-[11px] text-ink-muted">SKU: {product.sku}</div>
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="flex items-center gap-3">
+                        <div className="w-12 h-12 rounded-md overflow-hidden border border-border bg-bg flex-shrink-0">
+                          <img
+                            src={product.imageUrl || `https://picsum.photos/seed/${product.id}/120/120`}
+                            alt={product.name}
+                            className="w-full h-full object-cover"
+                          />
+                        </div>
+                        <div className="flex flex-col gap-1">
+                          <label className="text-xs text-ink-muted cursor-pointer border border-border rounded px-2 py-1 hover:bg-neutral-100 w-fit">
+                            Elegir
+                            <input
+                              type="file"
+                              accept="image/*"
+                              className="hidden"
+                              onChange={(e) =>
+                                setSelectedImages((prev) => ({
+                                  ...prev,
+                                  [product.id]: e.target.files?.[0] || null,
+                                }))
+                              }
+                            />
+                          </label>
+                          <button
+                            disabled={!selectedImages[product.id] || uploadingImageFor === product.id}
+                            onClick={() => handleUploadImage(product)}
+                            className="text-primary hover:text-blue-700 border border-border px-2 py-1 rounded-lg text-xs text-left disabled:opacity-40 disabled:cursor-not-allowed"
+                          >
+                            {uploadingImageFor === product.id ? 'Subiendo...' : 'Subir'}
+                          </button>
+                        </div>
+                      </div>
                     </td>
                     <td className="px-6 py-4 text-ink">{product.category}</td>
 
@@ -275,32 +309,13 @@ export default function AdminPage() {
                           />
                         </td>
                         <td className="px-6 py-4 text-right">
-                          <div className="flex items-center justify-end gap-2">
-                            <label className="text-xs text-ink-muted cursor-pointer border border-border rounded px-2 py-1 hover:bg-neutral-100">
-                              Imagen
-                              <input
-                                type="file"
-                                accept="image/*"
-                                className="hidden"
-                                onChange={(e) => setSelectedImage(e.target.files?.[0] || null)}
-                              />
-                            </label>
-                            <button
-                              disabled={!selectedImage || uploadingImageFor === product.id}
-                              onClick={() => handleUploadImage(product)}
-                              className="text-primary hover:text-blue-700 border border-border px-2 py-1 rounded-lg disabled:opacity-40 disabled:cursor-not-allowed"
-                              title="Subir imagen"
-                            >
-                              {uploadingImageFor === product.id ? 'Subiendo...' : 'Subir'}
-                            </button>
-                            <button
-                              onClick={() => handleSave(product.id)}
-                              className="text-primary hover:text-blue-700 bg-accent p-2 rounded-lg inline-flex items-center transition-colors"
-                              title="Guardar cambios"
-                            >
-                              <Save className="w-4 h-4" />
-                            </button>
-                          </div>
+                          <button
+                            onClick={() => handleSave(product.id)}
+                            className="text-primary hover:text-blue-700 bg-accent p-2 rounded-lg inline-flex items-center transition-colors"
+                            title="Guardar cambios"
+                          >
+                            <Save className="w-4 h-4" />
+                          </button>
                         </td>
                       </>
                     ) : (
@@ -319,7 +334,7 @@ export default function AdminPage() {
                 ))}
                 {products.length === 0 && (
                   <tr>
-                    <td colSpan={6} className="px-6 py-8 text-center text-ink-muted">
+                    <td colSpan={7} className="px-6 py-8 text-center text-ink-muted">
                       No hay productos. Usá "Importar Catálogo" para crear la base de datos de productos.
                     </td>
                   </tr>
