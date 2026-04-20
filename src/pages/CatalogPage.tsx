@@ -1,14 +1,15 @@
-import { useEffect, useState } from 'react';
+﻿import { useEffect, useState } from 'react';
 import { collection, onSnapshot, query, where } from 'firebase/firestore';
 import { db, Product, handleFirestoreError, OperationType } from '../firebase';
 import { ShoppingCart, Plus } from 'lucide-react';
 import { useCart } from '../context/CartContext';
 
-const CATEGORIES = ["Todas", "Cervezas", "Gaseosas", "Almacén", "Aguas", "Aperitivos", "Vinos", "Petacas", "Fideos", "Arroz", "Pure", "Azucar", "Alfajores", "Turrones", "Galletitas", "Yerbas", "Golosinas", "Snack", "Cigarrillos", "Analgesicos", "Panificados"];
+const CATEGORIES = ["Todas", "Cervezas", "Gaseosas", "AlmacÃ©n", "Aguas", "Aperitivos", "Vinos", "Petacas", "Fideos", "Arroz", "Pure", "Azucar", "Alfajores", "Turrones", "Galletitas", "Yerbas", "Golosinas", "Snack", "Cigarrillos", "Analgesicos", "Panificados"];
 
 export default function CatalogPage() {
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [selectedCategory, setSelectedCategory] = useState("Todas");
   const [search, setSearch] = useState("");
   const { addItem, items, promotions } = useCart();
@@ -25,11 +26,14 @@ export default function CatalogPage() {
       snapshot.forEach(doc => {
         prods.push({ id: doc.id, ...doc.data() } as Product);
       });
+      setLoadError(null);
       setProducts(prods);
       setLoading(false);
     }, (err) => {
-      handleFirestoreError(err, OperationType.LIST, 'products');
+      setLoadError('No se pudo cargar el catalogo. Revisar reglas/permisos de Firestore.');
+      setProducts([]);
       setLoading(false);
+      handleFirestoreError(err, OperationType.LIST, 'products');
     });
 
     return unsubscribe;
@@ -44,7 +48,7 @@ export default function CatalogPage() {
   return (
     <div className="flex-1 flex flex-col p-8">
       <header className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 gap-4">
-        <h1 className="text-3xl font-bold text-ink">Catálogo de Productos</h1>
+        <h1 className="text-3xl font-bold text-ink">CatÃ¡logo de Productos</h1>
         <input 
           type="text" 
           value={search}
@@ -73,7 +77,9 @@ export default function CatalogPage() {
       </div>
 
       {loading ? (
-        <div className="text-center py-20 text-ink-muted">Cargando catálogo...</div>
+        <div className="text-center py-20 text-ink-muted">Cargando catÃ¡logo...</div>
+      ) : loadError ? (
+        <div className="text-center py-20 text-red-600">{loadError}</div>
       ) : filteredProducts.length === 0 ? (
         <div className="text-center py-20 text-ink-muted">No hay productos disponibles por ahora.</div>
       ) : (
@@ -142,4 +148,5 @@ export default function CatalogPage() {
     </div>
   );
 }
+
 

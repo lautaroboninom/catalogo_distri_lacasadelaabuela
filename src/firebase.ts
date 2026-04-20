@@ -128,5 +128,9 @@ export function handleFirestoreError(error: unknown, operationType: OperationTyp
     path
   }
   console.error('Firestore Error: ', JSON.stringify(errInfo));
+  // Do not crash UI subscriptions on read/list failures; callers can recover in-place.
+  if (operationType === OperationType.LIST || operationType === OperationType.GET) {
+    return;
+  }
   throw new Error(JSON.stringify(errInfo));
 }
