@@ -2,12 +2,12 @@ import { Link, Outlet, useLocation } from 'react-router-dom';
 import { ShoppingCart, LogIn, Store, Settings, LogOut, Menu, X, Mail } from 'lucide-react';
 import { useCart } from '../../context/CartContext';
 import { useEffect, useState } from 'react';
-import { auth, signInWithGoogle, signInWithEmailPassword, logOut, getAuthErrorMessage } from '../../firebase';
-import { onAuthStateChanged, User } from 'firebase/auth';
+import { signInWithGoogle, signInWithEmailPassword, logOut, getAuthErrorMessage } from '../../firebase';
+import { useAuthState } from '../../hooks/useAuthState';
 
 export default function Layout() {
   const { totalItems } = useCart();
-  const [user, setUser] = useState<User | null>(null);
+  const { user, isAdmin } = useAuthState();
   const [authError, setAuthError] = useState<string | null>(null);
   const [authMode, setAuthMode] = useState<'google' | 'email'>('google');
   const [email, setEmail] = useState('');
@@ -16,11 +16,6 @@ export default function Layout() {
   const location = useLocation();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const closeMenu = () => setIsMobileMenuOpen(false);
-
-  useEffect(() => {
-    const unsub = onAuthStateChanged(auth, setUser);
-    return unsub;
-  }, []);
 
   useEffect(() => {
     if (user) {
@@ -125,7 +120,7 @@ export default function Layout() {
             )}
           </Link>
 
-          {user && (
+          {user && isAdmin && (
             <Link
               to="/admin"
               onClick={closeMenu}

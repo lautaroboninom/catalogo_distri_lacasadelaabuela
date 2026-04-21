@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
 import { auth, db } from '../firebase';
 import { onAuthStateChanged, User } from 'firebase/auth';
-import { doc, getDoc } from 'firebase/firestore';
+import { doc, onSnapshot } from 'firebase/firestore';
+import { isFallbackAdminEmail } from '../adminAccess';
 
 export function useAuthState() {
   const [user, setUser] = useState<User | null>(null);
@@ -9,26 +10,41 @@ export function useAuthState() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const unsub = onAuthStateChanged(auth, async (user) => {
+    let userDocUnsub: (() => void) | null = null;
+
+    const unsub = onAuthStateChanged(auth, (user) => {
+      userDocUnsub?.();
+      userDocUnsub = null;
       setUser(user);
+
       if (user) {
-        // In real firestore rules we allow read of self, but we are also checking if email falls back to admin
-        if (user.email === 'lautaroboninom@gmail.com') {
-             setIsAdmin(true);
+        if (user.emailVerified && isFallbackAdminEmail(user.email)) {
+          setIsAdmin(true);
+          setLoading(false);
         } else {
-            try {
-                const userDoc = await getDoc(doc(db, 'users', user.uid));
-                setIsAdmin(userDoc.data()?.role === 'admin');
-            } catch {
-                setIsAdmin(false);
+          setLoading(true);
+          userDocUnsub = onSnapshot(
+            doc(db, 'users', user.uid),
+            (userDoc) => {
+              setIsAdmin(userDoc.data()?.role === 'admin');
+              setLoading(false);
+            },
+            () => {
+              setIsAdmin(false);
+              setLoading(false);
             }
+          );
         }
       } else {
         setIsAdmin(false);
+        setLoading(false);
       }
-      setLoading(false);
     });
-    return unsub;
+
+    return () => {
+      userDocUnsub?.();
+      unsub();
+    };
   }, []);
 
   return { user, isAdmin, loading };

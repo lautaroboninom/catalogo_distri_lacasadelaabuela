@@ -41,10 +41,16 @@ service cloud.firestore {
     function isOwner(userId) {
       return isAuthenticated() && request.auth.uid == userId;
     }
+    function isAllowedAdminEmail() {
+      return request.auth.token.email_verified == true && request.auth.token.email in [
+        "lautaroboninom@gmail.com",
+        "fredy@districorp.com.ar"
+      ];
+    }
     function isAdmin() {
       return isAuthenticated() && (
         (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin') ||
-        (request.auth.token.email == "lautaroboninom@gmail.com" && request.auth.token.email_verified == true)
+        isAllowedAdminEmail()
       );
     }
     function hasOnlyAllowedFields(fields) {
