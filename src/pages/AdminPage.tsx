@@ -27,6 +27,9 @@ export default function AdminPage() {
       editForm.category || '',
     ])
   ).filter(Boolean);
+  const fieldClass =
+    'w-full rounded-lg border border-border px-3 py-2 outline-none focus:border-primary focus:ring-1 focus:ring-primary';
+  const formatCurrency = (value?: number) => `$${Number(value ?? 0).toFixed(2)}`;
 
   useEffect(() => {
     if (!loading && (!user || !isAdmin)) {
@@ -190,37 +193,37 @@ export default function AdminPage() {
   if (!isAdmin) return null;
 
   return (
-    <div className="flex-1 w-full min-w-0 max-w-full p-4 md:p-8 overflow-y-auto overflow-x-hidden">
+    <div className="flex-1 w-full min-w-0 max-w-full overflow-y-auto overflow-x-hidden p-3 sm:p-4 md:p-8">
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-6 gap-4">
         <h1 className="text-2xl md:text-3xl font-bold text-ink flex items-center gap-3">
           <Settings className="w-8 h-8 text-ink-muted" />
           Administración
         </h1>
-        <div className="w-full sm:w-auto overflow-x-auto">
-          <div className="flex min-w-max bg-surface rounded-lg p-1 border border-border">
+        <div className="w-full sm:w-auto">
+          <div className="grid grid-cols-3 gap-1 rounded-xl border border-border bg-surface p-1">
             <button
               onClick={() => setActiveTab('inventory')}
-              className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-colors whitespace-nowrap ${
+              className={`flex items-center justify-center gap-1 rounded-lg px-2 py-2.5 text-[12px] font-medium transition-colors sm:justify-start sm:gap-2 sm:px-4 sm:py-2 sm:text-sm ${
                 activeTab === 'inventory' ? 'bg-primary text-white' : 'text-ink-muted hover:text-ink'
               }`}
             >
-              <Package className="w-4 h-4" /> Inventario
+              <Package className="hidden h-4 w-4 sm:block" /> Inventario
             </button>
             <button
               onClick={() => setActiveTab('promotions')}
-              className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-colors whitespace-nowrap ${
+              className={`flex items-center justify-center gap-1 rounded-lg px-2 py-2.5 text-[12px] font-medium transition-colors sm:justify-start sm:gap-2 sm:px-4 sm:py-2 sm:text-sm ${
                 activeTab === 'promotions' ? 'bg-primary text-white' : 'text-ink-muted hover:text-ink'
               }`}
             >
-              <Tag className="w-4 h-4" /> Promociones
+              <Tag className="hidden h-4 w-4 sm:block" /> Promociones
             </button>
             <button
               onClick={() => setActiveTab('inflation')}
-              className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-colors whitespace-nowrap ${
+              className={`flex items-center justify-center gap-1 rounded-lg px-2 py-2.5 text-[12px] font-medium transition-colors sm:justify-start sm:gap-2 sm:px-4 sm:py-2 sm:text-sm ${
                 activeTab === 'inflation' ? 'bg-primary text-white' : 'text-ink-muted hover:text-ink'
               }`}
             >
-              <TrendingUp className="w-4 h-4" /> Inflación
+              <TrendingUp className="hidden h-4 w-4 sm:block" /> Inflación
             </button>
           </div>
         </div>
@@ -228,15 +231,177 @@ export default function AdminPage() {
 
       {activeTab === 'inventory' && (
         <div className="w-full min-w-0 bg-surface rounded-xl border border-border shadow-sm overflow-hidden flex flex-col">
-          <div className="p-4 border-b border-border flex justify-end">
+          <div className="flex flex-col gap-4 border-b border-border p-4 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <h2 className="text-lg font-bold text-ink">Precios y stock</h2>
+              <p className="text-sm text-ink-muted">{products.length} productos cargados</p>
+            </div>
             <button
               onClick={handleAddDemoProduct}
-              className="flex items-center gap-2 bg-primary text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-blue-700 transition-colors whitespace-nowrap"
+              className="flex w-full items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-sm font-semibold text-white transition-colors whitespace-nowrap hover:bg-blue-700 sm:w-auto"
             >
               <Plus className="w-4 h-4" /> Importar Catálogo Completo
             </button>
           </div>
-          <div className="w-full overflow-x-auto">
+          <div className="divide-y divide-border md:hidden">
+            {products.map((product) => {
+              const isEditing = editingId === product.id;
+              const selectedImageName = selectedImages[product.id]?.name;
+
+              return (
+                <article key={product.id} className="space-y-4 p-4">
+                  <div className="flex items-start gap-3">
+                    <div className="h-16 w-16 flex-shrink-0 overflow-hidden rounded-xl border border-border bg-bg">
+                      <img
+                        src={product.imageUrl || `https://picsum.photos/seed/${product.id}/120/120`}
+                        alt={product.name}
+                        className="h-full w-full object-cover"
+                      />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="text-sm font-semibold leading-tight text-ink">{product.name}</div>
+                      <div className="mt-1 text-[11px] text-ink-muted">SKU: {product.sku}</div>
+                      <div className="mt-3 flex flex-wrap gap-2">
+                        <span className="rounded-full bg-bg px-2.5 py-1 text-[11px] font-medium text-ink-muted">
+                          {product.category}
+                        </span>
+                        <span className="rounded-full bg-accent px-2.5 py-1 text-[11px] font-semibold text-primary">
+                          Venta {formatCurrency(product.price)}
+                        </span>
+                        <span className="rounded-full bg-bg px-2.5 py-1 text-[11px] font-medium text-ink-muted">
+                          Stock {product.stock}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="rounded-xl border border-border bg-bg/70 p-3">
+                    <div className="flex items-center gap-3">
+                      <label className="inline-flex cursor-pointer items-center justify-center rounded-lg border border-border bg-surface px-3 py-2 text-xs font-medium text-ink-muted transition-colors hover:bg-neutral-100">
+                        Elegir imagen
+                        <input
+                          type="file"
+                          accept="image/*"
+                          className="hidden"
+                          onChange={(e) =>
+                            setSelectedImages((prev) => ({
+                              ...prev,
+                              [product.id]: e.target.files?.[0] || null,
+                            }))
+                          }
+                        />
+                      </label>
+                      <button
+                        disabled={!selectedImages[product.id] || uploadingImageFor === product.id}
+                        onClick={() => handleUploadImage(product)}
+                        className="inline-flex items-center justify-center rounded-lg border border-border px-3 py-2 text-xs font-medium text-primary transition-colors hover:bg-surface disabled:cursor-not-allowed disabled:opacity-40"
+                      >
+                        {uploadingImageFor === product.id ? 'Subiendo...' : 'Subir'}
+                      </button>
+                    </div>
+                    <div className="mt-2 truncate text-[11px] text-ink-muted">
+                      {selectedImageName ? `Seleccionada: ${selectedImageName}` : 'Sin imagen nueva seleccionada'}
+                    </div>
+                  </div>
+
+                  {isEditing ? (
+                    <div className="space-y-3">
+                      <div>
+                        <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-ink-muted">
+                          Categoría
+                        </label>
+                        <select
+                          value={editForm.category || ''}
+                          onChange={(e) => setEditForm({ ...editForm, category: e.target.value })}
+                          className={fieldClass}
+                        >
+                          {categoryOptions.map((category) => (
+                            <option key={category} value={category}>
+                              {category}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-ink-muted">
+                            Costo
+                          </label>
+                          <input
+                            type="number"
+                            inputMode="decimal"
+                            value={editForm.cost || 0}
+                            onChange={(e) => setEditForm({ ...editForm, cost: Number(e.target.value) })}
+                            className={fieldClass}
+                          />
+                        </div>
+                        <div>
+                          <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-ink-muted">
+                            Precio venta
+                          </label>
+                          <input
+                            type="number"
+                            inputMode="decimal"
+                            value={editForm.price || 0}
+                            onChange={(e) => setEditForm({ ...editForm, price: Number(e.target.value) })}
+                            className={fieldClass}
+                          />
+                        </div>
+                      </div>
+
+                      <div>
+                        <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-ink-muted">
+                          Stock
+                        </label>
+                        <input
+                          type="number"
+                          inputMode="numeric"
+                          value={editForm.stock || 0}
+                          onChange={(e) => setEditForm({ ...editForm, stock: Number(e.target.value) })}
+                          className={fieldClass}
+                        />
+                      </div>
+
+                      <button
+                        onClick={() => handleSave(product.id)}
+                        className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-primary px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-blue-700"
+                      >
+                        <Save className="h-4 w-4" />
+                        Guardar cambios
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="rounded-xl border border-border bg-bg px-3 py-2.5">
+                          <div className="text-[11px] uppercase tracking-wide text-ink-muted">Costo</div>
+                          <div className="mt-1 text-sm font-semibold text-ink">{formatCurrency(product.cost)}</div>
+                        </div>
+                        <div className="rounded-xl border border-border bg-bg px-3 py-2.5">
+                          <div className="text-[11px] uppercase tracking-wide text-ink-muted">Precio venta</div>
+                          <div className="mt-1 text-sm font-semibold text-primary">{formatCurrency(product.price)}</div>
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => handleEdit(product)}
+                        className="inline-flex w-full items-center justify-center rounded-lg border border-border px-4 py-3 text-sm font-semibold text-primary transition-colors hover:bg-bg"
+                      >
+                        Editar producto
+                      </button>
+                    </div>
+                  )}
+                </article>
+              );
+            })}
+            {products.length === 0 && (
+              <div className="px-6 py-8 text-center text-ink-muted">
+                No hay productos. Usá "Importar Catálogo" para crear la base de datos de productos.
+              </div>
+            )}
+          </div>
+
+          <div className="hidden w-full overflow-x-auto md:block">
             <table className="w-full min-w-[980px] text-left text-sm table-auto">
               <thead className="bg-bg text-ink-muted border-b border-border font-semibold">
                 <tr>
@@ -250,110 +415,121 @@ export default function AdminPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
-                {products.map((product) => (
-                  <tr key={product.id} className="hover:bg-bg transition-colors">
-                    <td className="px-6 py-4">
-                      <div className="font-semibold text-ink break-words">{product.name}</div>
-                      <div className="text-[11px] text-ink-muted">SKU: {product.sku}</div>
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="flex items-center gap-2">
-                        <div className="w-12 h-12 rounded-md overflow-hidden border border-border bg-bg flex-shrink-0">
-                          <img
-                            src={product.imageUrl || `https://picsum.photos/seed/${product.id}/120/120`}
-                            alt={product.name}
-                            className="w-full h-full object-cover"
-                          />
-                        </div>
-                        <div className="flex flex-col gap-1 min-w-0">
-                          <label className="text-xs text-ink-muted cursor-pointer border border-border rounded px-2 py-1 hover:bg-neutral-100 w-fit">
-                            Elegir
-                            <input
-                              type="file"
-                              accept="image/*"
-                              className="hidden"
-                              onChange={(e) =>
-                                setSelectedImages((prev) => ({
-                                  ...prev,
-                                  [product.id]: e.target.files?.[0] || null,
-                                }))
-                              }
+                {products.map((product) => {
+                  const isEditing = editingId === product.id;
+                  const selectedImageName = selectedImages[product.id]?.name;
+
+                  return (
+                    <tr key={product.id} className="hover:bg-bg transition-colors">
+                      <td className="px-6 py-4">
+                        <div className="font-semibold text-ink break-words">{product.name}</div>
+                        <div className="text-[11px] text-ink-muted">SKU: {product.sku}</div>
+                      </td>
+                      <td className="px-6 py-4">
+                        <div className="flex items-center gap-2">
+                          <div className="w-12 h-12 rounded-md overflow-hidden border border-border bg-bg flex-shrink-0">
+                            <img
+                              src={product.imageUrl || `https://picsum.photos/seed/${product.id}/120/120`}
+                              alt={product.name}
+                              className="w-full h-full object-cover"
                             />
-                          </label>
-                          <button
-                            disabled={!selectedImages[product.id] || uploadingImageFor === product.id}
-                            onClick={() => handleUploadImage(product)}
-                            className="text-primary hover:text-blue-700 border border-border px-2 py-1 rounded-lg text-xs text-left whitespace-nowrap disabled:opacity-40 disabled:cursor-not-allowed"
-                          >
-                            {uploadingImageFor === product.id ? 'Subiendo...' : 'Subir'}
-                          </button>
+                          </div>
+                          <div className="flex min-w-0 flex-col gap-1">
+                            <label className="text-xs text-ink-muted cursor-pointer border border-border rounded px-2 py-1 hover:bg-neutral-100 w-fit">
+                              Elegir
+                              <input
+                                type="file"
+                                accept="image/*"
+                                className="hidden"
+                                onChange={(e) =>
+                                  setSelectedImages((prev) => ({
+                                    ...prev,
+                                    [product.id]: e.target.files?.[0] || null,
+                                  }))
+                                }
+                              />
+                            </label>
+                            <button
+                              disabled={!selectedImages[product.id] || uploadingImageFor === product.id}
+                              onClick={() => handleUploadImage(product)}
+                              className="text-primary hover:text-blue-700 border border-border px-2 py-1 rounded-lg text-xs text-left whitespace-nowrap disabled:opacity-40 disabled:cursor-not-allowed"
+                            >
+                              {uploadingImageFor === product.id ? 'Subiendo...' : 'Subir'}
+                            </button>
+                            <span className="max-w-[180px] truncate text-[11px] text-ink-muted">
+                              {selectedImageName || 'Sin selección'}
+                            </span>
+                          </div>
                         </div>
-                      </div>
-                    </td>
-                    {editingId === product.id ? (
-                      <>
-                        <td className="px-6 py-4">
-                          <select
-                            value={editForm.category || ''}
-                            onChange={(e) => setEditForm({ ...editForm, category: e.target.value })}
-                            className="min-w-[180px] rounded border border-border px-2 py-1 outline-none focus:border-primary focus:ring-1 focus:ring-primary"
-                          >
-                            {categoryOptions.map((category) => (
-                              <option key={category} value={category}>
-                                {category}
-                              </option>
-                            ))}
-                          </select>
-                        </td>
-                        <td className="px-6 py-4">
-                          <input
-                            type="number"
-                            value={editForm.cost || 0}
-                            onChange={(e) => setEditForm({ ...editForm, cost: Number(e.target.value) })}
-                            className="w-24 px-2 py-1 border border-border rounded outline-none focus:border-primary focus:ring-1 focus:ring-primary"
-                          />
-                        </td>
-                        <td className="px-6 py-4">
-                          <input
-                            type="number"
-                            value={editForm.price || 0}
-                            onChange={(e) => setEditForm({ ...editForm, price: Number(e.target.value) })}
-                            className="w-24 px-2 py-1 border border-border rounded outline-none focus:border-primary focus:ring-1 focus:ring-primary"
-                          />
-                        </td>
-                        <td className="px-6 py-4">
-                          <input
-                            type="number"
-                            value={editForm.stock || 0}
-                            onChange={(e) => setEditForm({ ...editForm, stock: Number(e.target.value) })}
-                            className="w-20 px-2 py-1 border border-border rounded outline-none focus:border-primary focus:ring-1 focus:ring-primary"
-                          />
-                        </td>
-                        <td className="px-6 py-4 text-right">
-                          <button
-                            onClick={() => handleSave(product.id)}
-                            className="text-primary hover:text-blue-700 bg-accent p-2 rounded-lg inline-flex items-center transition-colors"
-                            title="Guardar cambios"
-                          >
-                            <Save className="w-4 h-4" />
-                          </button>
-                        </td>
-                      </>
-                    ) : (
-                      <>
-                        <td className="px-6 py-4 text-ink">{product.category}</td>
-                        <td className="px-6 py-4 text-ink-muted">${product.cost?.toFixed(2)}</td>
-                        <td className="px-6 py-4 text-ink font-medium">${product.price?.toFixed(2)}</td>
-                        <td className="px-6 py-4 text-ink-muted">{product.stock}</td>
-                        <td className="px-6 py-4 text-right">
-                          <button onClick={() => handleEdit(product)} className="text-primary hover:underline font-medium">
-                            Editar
-                          </button>
-                        </td>
-                      </>
-                    )}
-                  </tr>
-                ))}
+                      </td>
+                      {isEditing ? (
+                        <>
+                          <td className="px-6 py-4">
+                            <select
+                              value={editForm.category || ''}
+                              onChange={(e) => setEditForm({ ...editForm, category: e.target.value })}
+                              className="min-w-[180px] rounded border border-border px-2 py-1 outline-none focus:border-primary focus:ring-1 focus:ring-primary"
+                            >
+                              {categoryOptions.map((category) => (
+                                <option key={category} value={category}>
+                                  {category}
+                                </option>
+                              ))}
+                            </select>
+                          </td>
+                          <td className="px-6 py-4">
+                            <input
+                              type="number"
+                              inputMode="decimal"
+                              value={editForm.cost || 0}
+                              onChange={(e) => setEditForm({ ...editForm, cost: Number(e.target.value) })}
+                              className="w-24 px-2 py-1 border border-border rounded outline-none focus:border-primary focus:ring-1 focus:ring-primary"
+                            />
+                          </td>
+                          <td className="px-6 py-4">
+                            <input
+                              type="number"
+                              inputMode="decimal"
+                              value={editForm.price || 0}
+                              onChange={(e) => setEditForm({ ...editForm, price: Number(e.target.value) })}
+                              className="w-24 px-2 py-1 border border-border rounded outline-none focus:border-primary focus:ring-1 focus:ring-primary"
+                            />
+                          </td>
+                          <td className="px-6 py-4">
+                            <input
+                              type="number"
+                              inputMode="numeric"
+                              value={editForm.stock || 0}
+                              onChange={(e) => setEditForm({ ...editForm, stock: Number(e.target.value) })}
+                              className="w-20 px-2 py-1 border border-border rounded outline-none focus:border-primary focus:ring-1 focus:ring-primary"
+                            />
+                          </td>
+                          <td className="px-6 py-4 text-right">
+                            <button
+                              onClick={() => handleSave(product.id)}
+                              className="text-primary hover:text-blue-700 bg-accent p-2 rounded-lg inline-flex items-center transition-colors"
+                              title="Guardar cambios"
+                            >
+                              <Save className="w-4 h-4" />
+                            </button>
+                          </td>
+                        </>
+                      ) : (
+                        <>
+                          <td className="px-6 py-4 text-ink">{product.category}</td>
+                          <td className="px-6 py-4 text-ink-muted">{formatCurrency(product.cost)}</td>
+                          <td className="px-6 py-4 text-ink font-medium">{formatCurrency(product.price)}</td>
+                          <td className="px-6 py-4 text-ink-muted">{product.stock}</td>
+                          <td className="px-6 py-4 text-right">
+                            <button onClick={() => handleEdit(product)} className="text-primary hover:underline font-medium">
+                              Editar
+                            </button>
+                          </td>
+                        </>
+                      )}
+                    </tr>
+                  );
+                })}
                 {products.length === 0 && (
                   <tr>
                     <td colSpan={7} className="px-6 py-8 text-center text-ink-muted">
@@ -368,20 +544,20 @@ export default function AdminPage() {
       )}
 
       {activeTab === 'promotions' && (
-        <div className="bg-surface rounded-xl border border-border shadow-sm p-6">
-          <div className="flex justify-between items-center mb-6">
+        <div className="bg-surface rounded-xl border border-border shadow-sm p-4 sm:p-6">
+          <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <h2 className="text-lg font-bold text-ink">Reglas de promoción</h2>
             <button
               onClick={handleCreateDemoPromotion}
-              className="flex items-center gap-2 bg-primary text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-blue-700 transition-colors"
+              className="flex w-full items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-blue-700 sm:w-auto"
             >
               <Plus className="w-4 h-4" /> Promo default
             </button>
           </div>
           <div className="grid gap-4">
             {promotions.map((promo) => (
-              <div key={promo.id} className="p-4 border border-border rounded-lg flex justify-between items-center bg-bg">
-                <div>
+              <div key={promo.id} className="flex flex-col gap-4 rounded-lg border border-border bg-bg p-4 sm:flex-row sm:items-center sm:justify-between">
+                <div className="min-w-0">
                   <h3 className="font-semibold text-ink">{promo.name}</h3>
                   <p className="text-sm text-ink-muted">
                     Tipo: {promo.type} - Aplica a: {promo.targetType} {promo.targetId ? `(${promo.targetId})` : ''}
@@ -408,7 +584,7 @@ export default function AdminPage() {
       )}
 
       {activeTab === 'inflation' && (
-        <div className="bg-surface rounded-xl border border-border shadow-sm p-6 max-w-md">
+        <div className="max-w-md rounded-xl border border-border bg-surface p-4 shadow-sm sm:p-6">
           <h2 className="text-lg font-bold text-ink mb-2">Ajuste por inflación</h2>
           <p className="text-sm text-ink-muted mb-6">
             Ajusta el precio de venta de TODOS los productos en un porcentaje específico. Ejemplo: 5 para aumentar 5%.
@@ -420,6 +596,7 @@ export default function AdminPage() {
               <div className="relative">
                 <input
                   type="number"
+                  inputMode="decimal"
                   value={inflationPercentage}
                   onChange={(e) => setInflationPercentage(Number(e.target.value))}
                   className="w-full pl-4 pr-8 py-2 border border-border rounded-lg outline-none focus:border-primary focus:ring-1 focus:ring-primary font-medium text-ink"
