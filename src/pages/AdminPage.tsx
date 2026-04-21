@@ -3,7 +3,7 @@ import { useAuthState } from '../hooks/useAuthState';
 import { db, storage, Product, Promotion, handleFirestoreError, OperationType } from '../firebase';
 import { collection, onSnapshot, updateDoc, doc, addDoc, deleteDoc } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
-import { Settings, Save, Plus, TrendingUp, Tag, Package, Trash2 } from 'lucide-react';
+import { Settings, Save, Plus, TrendingUp, Tag, Package, Trash2, Search } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { PRODUCT_CATEGORIES } from '../data/productCategories';
 
@@ -15,6 +15,7 @@ export default function AdminPage() {
   const [products, setProducts] = useState<Product[]>([]);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editForm, setEditForm] = useState<Partial<Product>>({});
+  const [productSearch, setProductSearch] = useState('');
   const [selectedImages, setSelectedImages] = useState<Record<string, File | null>>({});
   const [uploadingImageFor, setUploadingImageFor] = useState<string | null>(null);
 
@@ -30,6 +31,16 @@ export default function AdminPage() {
   const fieldClass =
     'w-full rounded-lg border border-border px-3 py-2 outline-none focus:border-primary focus:ring-1 focus:ring-primary';
   const formatCurrency = (value?: number) => `$${Number(value ?? 0).toFixed(2)}`;
+  const normalizedProductSearch = productSearch.trim().toLowerCase();
+  const filteredProducts = products.filter((product) => {
+    if (!normalizedProductSearch) return true;
+
+    return (
+      product.name.toLowerCase().includes(normalizedProductSearch) ||
+      product.sku.toLowerCase().includes(normalizedProductSearch) ||
+      product.category.toLowerCase().includes(normalizedProductSearch)
+    );
+  });
 
   useEffect(() => {
     if (!loading && (!user || !isAdmin)) {
@@ -232,9 +243,21 @@ export default function AdminPage() {
       {activeTab === 'inventory' && (
         <div className="w-full min-w-0 bg-surface rounded-xl border border-border shadow-sm overflow-hidden flex flex-col">
           <div className="flex flex-col gap-4 border-b border-border p-4 sm:flex-row sm:items-center sm:justify-between">
-            <div>
+            <div className="w-full sm:max-w-md">
               <h2 className="text-lg font-bold text-ink">Precios y stock</h2>
-              <p className="text-sm text-ink-muted">{products.length} productos cargados</p>
+              <p className="mb-3 text-sm text-ink-muted">
+                {filteredProducts.length} de {products.length} productos
+              </p>
+              <label className="relative block">
+                <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-muted" />
+                <input
+                  type="text"
+                  value={productSearch}
+                  onChange={(e) => setProductSearch(e.target.value)}
+                  placeholder="Buscar por nombre, SKU o categoria..."
+                  className="w-full rounded-lg border border-border bg-white py-2.5 pl-10 pr-3 text-sm text-ink outline-none focus:border-primary focus:ring-1 focus:ring-primary"
+                />
+              </label>
             </div>
             <button
               onClick={handleAddDemoProduct}
@@ -244,7 +267,7 @@ export default function AdminPage() {
             </button>
           </div>
           <div className="divide-y divide-border md:hidden">
-            {products.map((product) => {
+            {filteredProducts.map((product) => {
               const isEditing = editingId === product.id;
               const selectedImageName = selectedImages[product.id]?.name;
 
@@ -394,9 +417,11 @@ export default function AdminPage() {
                 </article>
               );
             })}
-            {products.length === 0 && (
+            {filteredProducts.length === 0 && (
               <div className="px-6 py-8 text-center text-ink-muted">
-                No hay productos. Usá "Importar Catálogo" para crear la base de datos de productos.
+                {products.length === 0
+                  ? 'No hay productos. Usá "Importar Catálogo" para crear la base de datos de productos.'
+                  : 'No hay productos que coincidan con la búsqueda.'}
               </div>
             )}
           </div>
@@ -415,7 +440,7 @@ export default function AdminPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
-                {products.map((product) => {
+                {filteredProducts.map((product) => {
                   const isEditing = editingId === product.id;
                   const selectedImageName = selectedImages[product.id]?.name;
 
@@ -530,10 +555,12 @@ export default function AdminPage() {
                     </tr>
                   );
                 })}
-                {products.length === 0 && (
+                {filteredProducts.length === 0 && (
                   <tr>
                     <td colSpan={7} className="px-6 py-8 text-center text-ink-muted">
-                      No hay productos. Usá "Importar Catálogo" para crear la base de datos de productos.
+                      {products.length === 0
+                        ? 'No hay productos. Usá "Importar Catálogo" para crear la base de datos de productos.'
+                        : 'No hay productos que coincidan con la búsqueda.'}
                     </td>
                   </tr>
                 )}

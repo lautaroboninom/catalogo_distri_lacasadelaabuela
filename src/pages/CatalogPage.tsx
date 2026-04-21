@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { collection, onSnapshot, query, where } from 'firebase/firestore';
 import { db, Product, handleFirestoreError, OperationType } from '../firebase';
 import { Plus, Search } from 'lucide-react';
@@ -12,6 +12,11 @@ export default function CatalogPage() {
   const [selectedCategory, setSelectedCategory] = useState('Todas');
   const [search, setSearch] = useState('');
   const { addItem, items, promotions } = useCart();
+
+  const availableCategories = useMemo(() => {
+    const categoriesInUse = new Set(products.map((product) => product.category).filter(Boolean));
+    return PRODUCT_CATEGORIES.filter((category) => category === 'Todas' || categoriesInUse.has(category));
+  }, [products]);
 
   useEffect(() => {
     const q = query(collection(db, 'products'), where('status', '==', 'active'));
@@ -37,6 +42,12 @@ export default function CatalogPage() {
 
     return unsubscribe;
   }, []);
+
+  useEffect(() => {
+    if (!availableCategories.includes(selectedCategory)) {
+      setSelectedCategory('Todas');
+    }
+  }, [availableCategories, selectedCategory]);
 
   const filteredProducts = products.filter((product) => {
     const matchCategory = selectedCategory === 'Todas' || product.category === selectedCategory;
@@ -70,7 +81,7 @@ export default function CatalogPage() {
 
         <div className="overflow-x-auto pb-1 hide-scrollbar">
           <div className="flex gap-2 pr-3 sm:pr-0">
-            {PRODUCT_CATEGORIES.map((category) => (
+            {availableCategories.map((category) => (
               <button
                 key={category}
                 onClick={() => setSelectedCategory(category)}
