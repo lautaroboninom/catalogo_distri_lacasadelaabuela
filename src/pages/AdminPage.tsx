@@ -5,6 +5,7 @@ import { collection, onSnapshot, updateDoc, doc, addDoc, deleteDoc } from 'fireb
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { Settings, Save, Plus, TrendingUp, Tag, Package, Trash2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { PRODUCT_CATEGORIES } from '../data/productCategories';
 
 export default function AdminPage() {
   const { user, isAdmin, loading } = useAuthState();
@@ -19,6 +20,13 @@ export default function AdminPage() {
 
   const [promotions, setPromotions] = useState<Promotion[]>([]);
   const [inflationPercentage, setInflationPercentage] = useState<number>(0);
+  const categoryOptions = Array.from(
+    new Set([
+      ...PRODUCT_CATEGORIES.filter((category) => category !== 'Todas'),
+      ...products.map((product) => product.category).filter(Boolean),
+      editForm.category || '',
+    ])
+  ).filter(Boolean);
 
   useEffect(() => {
     if (!loading && (!user || !isAdmin)) {
@@ -282,10 +290,21 @@ export default function AdminPage() {
                         </div>
                       </div>
                     </td>
-                    <td className="px-6 py-4 text-ink">{product.category}</td>
-
                     {editingId === product.id ? (
                       <>
+                        <td className="px-6 py-4">
+                          <select
+                            value={editForm.category || ''}
+                            onChange={(e) => setEditForm({ ...editForm, category: e.target.value })}
+                            className="min-w-[180px] rounded border border-border px-2 py-1 outline-none focus:border-primary focus:ring-1 focus:ring-primary"
+                          >
+                            {categoryOptions.map((category) => (
+                              <option key={category} value={category}>
+                                {category}
+                              </option>
+                            ))}
+                          </select>
+                        </td>
                         <td className="px-6 py-4">
                           <input
                             type="number"
@@ -322,6 +341,7 @@ export default function AdminPage() {
                       </>
                     ) : (
                       <>
+                        <td className="px-6 py-4 text-ink">{product.category}</td>
                         <td className="px-6 py-4 text-ink-muted">${product.cost?.toFixed(2)}</td>
                         <td className="px-6 py-4 text-ink font-medium">${product.price?.toFixed(2)}</td>
                         <td className="px-6 py-4 text-ink-muted">{product.stock}</td>
