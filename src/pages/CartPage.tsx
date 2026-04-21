@@ -92,9 +92,6 @@ export default function CartPage() {
     setIsSubmitting(true);
 
     try {
-      const tax = totalPrice * 0.12;
-      const grandTotal = totalPrice + tax;
-
       let orderCode = buildGuestOrderCode();
       if (user) {
         const orderData = {
@@ -102,7 +99,7 @@ export default function CartPage() {
           customerName: trimmedName,
           contactEmail: user.email || null,
           status: 'pending',
-          total: grandTotal,
+          total: totalPrice,
           subtotal: totalPrice,
           createdAt: serverTimestamp(),
           items: items.map((item) => ({
@@ -134,9 +131,8 @@ export default function CartPage() {
             return `- ${item.quantity}x ${item.product.name} (SKU ${item.product.sku}) - $${lineTotal.toFixed(2)}`;
           })
           .join('\n')}` +
-        `\n\n*Subtotal:* $${totalPrice.toFixed(2)}` +
-        `\n*Impuestos (12%):* $${tax.toFixed(2)}` +
-        `\n*Total:* $${grandTotal.toFixed(2)}`;
+          `\n\n*Subtotal:* $${totalPrice.toFixed(2)}` +
+          `\n*Total:* $${totalPrice.toFixed(2)}`;
 
       const waUrl = `https://wa.me/${whatsappNumber}?text=${encodeURIComponent(message)}`;
       const waWindow = window.open(waUrl, '_blank', 'noopener,noreferrer');
@@ -175,9 +171,6 @@ export default function CartPage() {
       </div>
     );
   }
-
-  const tax = totalPrice * 0.12;
-  const grandTotal = totalPrice + tax;
 
   return (
     <div className="flex h-full flex-1 flex-col overflow-hidden p-4 md:p-8">
@@ -360,12 +353,8 @@ export default function CartPage() {
               <p className="text-[15px] font-semibold md:text-[18px]">${totalPrice.toFixed(2)}</p>
             </div>
             <div>
-              <span className="mb-1 block text-[11px] opacity-60 md:text-[12px]">Impuestos (12%)</span>
-              <p className="text-[15px] font-semibold md:text-[18px]">${tax.toFixed(2)}</p>
-            </div>
-            <div>
               <span className="mb-1 block text-[11px] opacity-60 md:text-[12px]">Total Orden</span>
-              <p className="text-[15px] font-semibold text-accent md:text-[18px]">${grandTotal.toFixed(2)}</p>
+              <p className="text-[15px] font-semibold text-accent md:text-[18px]">${totalPrice.toFixed(2)}</p>
             </div>
           </div>
 
