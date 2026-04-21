@@ -94,7 +94,7 @@ export default function CatalogPage() {
       ) : filteredProducts.length === 0 ? (
         <div className="py-20 text-center text-ink-muted">No hay productos disponibles por ahora.</div>
       ) : (
-        <div className="grid flex-1 grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-5">
+        <div className="grid flex-1 grid-cols-3 gap-2 sm:grid-cols-3 sm:gap-5">
           {filteredProducts.map((product) => {
             const inCart = items.find((item) => item.product.id === product.id)?.quantity || 0;
 
