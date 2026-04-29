@@ -7,6 +7,55 @@ import { Settings, Save, Plus, TrendingUp, Tag, Package, Trash2, Search } from '
 import { useNavigate } from 'react-router-dom';
 import { PRODUCT_CATEGORIES } from '../data/productCategories';
 
+type ProductEditForm = {
+  category: string;
+  cost: string;
+  price: string;
+  stock: string;
+};
+
+type SaveNotice = {
+  type: 'success' | 'error';
+  message: string;
+};
+
+const emptyEditForm: ProductEditForm = {
+  category: '',
+  cost: '',
+  price: '',
+  stock: '',
+};
+
+const toEditForm = (product: Product): ProductEditForm => ({
+  category: product.category || '',
+  cost: String(product.cost ?? ''),
+  price: String(product.price ?? ''),
+  stock: String(product.stock ?? ''),
+});
+
+const parseLocalizedDecimal = (value: string) => {
+  const trimmed = value.trim().replace(/\s+/g, '');
+  if (!trimmed) return null;
+
+  const lastComma = trimmed.lastIndexOf(',');
+  const lastDot = trimmed.lastIndexOf('.');
+  let normalized = trimmed;
+
+  if (lastComma >= 0 && lastDot >= 0) {
+    normalized =
+      lastComma > lastDot
+        ? trimmed.replace(/\./g, '').replace(',', '.')
+        : trimmed.replace(/,/g, '');
+  } else if (lastComma >= 0) {
+    normalized = trimmed.replace(',', '.');
+  }
+
+  const parsed = Number(normalized);
+  return Number.isFinite(parsed) ? parsed : null;
+};
+
+const roundCurrency = (value: number) => Math.round(value * 100) / 100;
+
 export default function AdminPage() {
   const { user, isAdmin, loading } = useAuthState();
   const navigate = useNavigate();
@@ -14,7 +63,9 @@ export default function AdminPage() {
 
   const [products, setProducts] = useState<Product[]>([]);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [editForm, setEditForm] = useState<Partial<Product>>({});
+  const [editForm, setEditForm] = useState<ProductEditForm>(emptyEditForm);
+  const [savingId, setSavingId] = useState<string | null>(null);
+  const [saveNotice, setSaveNotice] = useState<SaveNotice | null>(null);
   const [productSearch, setProductSearch] = useState('');
   const [selectedImages, setSelectedImages] = useState<Record<string, File | null>>({});
   const [uploadingImageFor, setUploadingImageFor] = useState<string | null>(null);
@@ -82,15 +133,59 @@ export default function AdminPage() {
 
   const handleEdit = (product: Product) => {
     setEditingId(product.id);
-    setEditForm(product);
+    setEditForm(toEditForm(product));
+    setSaveNotice(null);
+  };
+
+  const handleEditField = <K extends keyof ProductEditForm>(field: K, value: ProductEditForm[K]) => {
+    setEditForm((prev) => ({ ...prev, [field]: value }));
+    setSaveNotice(null);
   };
 
   const handleSave = async (id: string) => {
+    const category = editForm.category.trim();
+    const cost = parseLocalizedDecimal(editForm.cost);
+    const price = parseLocalizedDecimal(editForm.price);
+    const stock = parseLocalizedDecimal(editForm.stock);
+
+    if (!category) {
+      setSaveNotice({ type: 'error', message: 'Elegí una categoría antes de guardar.' });
+      return;
+    }
+
+    if (cost === null || price === null || stock === null) {
+      setSaveNotice({ type: 'error', message: 'Revisá costo, precio y stock: deben ser números válidos.' });
+      return;
+    }
+
+    if (cost < 0 || price < 0 || stock < 0) {
+      setSaveNotice({ type: 'error', message: 'Costo, precio y stock no pueden ser negativos.' });
+      return;
+    }
+
     try {
-      await updateDoc(doc(db, 'products', id), editForm);
+      setSavingId(id);
+      await updateDoc(doc(db, 'products', id), {
+        category,
+        cost: roundCurrency(cost),
+        price: roundCurrency(price),
+        stock: Math.round(stock),
+      });
       setEditingId(null);
+      setEditForm(emptyEditForm);
+      setSaveNotice({ type: 'success', message: 'Producto actualizado correctamente.' });
     } catch (err) {
-      handleFirestoreError(err, OperationType.UPDATE, `products/${id}`);
+      try {
+        handleFirestoreError(err, OperationType.UPDATE, `products/${id}`);
+      } catch {
+        // The shared handler logs context and throws for writes; keep this view responsive.
+      }
+      setSaveNotice({
+        type: 'error',
+        message: 'No se pudo guardar. Revisá la conexión o los permisos de la cuenta administradora.',
+      });
+    } finally {
+      setSavingId(null);
     }
   };
 
@@ -119,7 +214,6 @@ export default function AdminPage() {
         imageUpdatedAt: new Date().toISOString(),
       });
 
-      setEditForm((prev) => ({ ...prev, imageUrl }));
       setSelectedImages((prev) => ({ ...prev, [product.id]: null }));
     } catch (err) {
       handleFirestoreError(err, OperationType.UPDATE, `products/${product.id}`);
@@ -248,6 +342,18 @@ export default function AdminPage() {
               <p className="mb-3 text-sm text-ink-muted">
                 {filteredProducts.length} de {products.length} productos
               </p>
+              {saveNotice && (
+                <div
+                  role={saveNotice.type === 'error' ? 'alert' : 'status'}
+                  className={`mb-3 rounded-lg border px-3 py-2 text-sm ${
+                    saveNotice.type === 'error'
+                      ? 'border-red-200 bg-red-50 text-red-700'
+                      : 'border-emerald-200 bg-emerald-50 text-emerald-700'
+                  }`}
+                >
+                  {saveNotice.message}
+                </div>
+              )}
               <label className="relative block">
                 <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-muted" />
                 <input
@@ -273,6 +379,11 @@ export default function AdminPage() {
 
               return (
                 <article key={product.id} className="space-y-4 p-4">
+                  {isEditing && saveNotice?.type === 'error' && (
+                    <div role="alert" className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+                      {saveNotice.message}
+                    </div>
+                  )}
                   <div className="flex items-start gap-3">
                     <div className="h-16 w-16 flex-shrink-0 overflow-hidden rounded-xl border border-border bg-bg">
                       <img
@@ -334,8 +445,8 @@ export default function AdminPage() {
                           Categoría
                         </label>
                         <select
-                          value={editForm.category || ''}
-                          onChange={(e) => setEditForm({ ...editForm, category: e.target.value })}
+                          value={editForm.category}
+                          onChange={(e) => handleEditField('category', e.target.value)}
                           className={fieldClass}
                         >
                           {categoryOptions.map((category) => (
@@ -352,10 +463,10 @@ export default function AdminPage() {
                             Costo
                           </label>
                           <input
-                            type="number"
+                            type="text"
                             inputMode="decimal"
-                            value={editForm.cost || 0}
-                            onChange={(e) => setEditForm({ ...editForm, cost: Number(e.target.value) })}
+                            value={editForm.cost}
+                            onChange={(e) => handleEditField('cost', e.target.value)}
                             className={fieldClass}
                           />
                         </div>
@@ -364,10 +475,10 @@ export default function AdminPage() {
                             Precio venta
                           </label>
                           <input
-                            type="number"
+                            type="text"
                             inputMode="decimal"
-                            value={editForm.price || 0}
-                            onChange={(e) => setEditForm({ ...editForm, price: Number(e.target.value) })}
+                            value={editForm.price}
+                            onChange={(e) => handleEditField('price', e.target.value)}
                             className={fieldClass}
                           />
                         </div>
@@ -378,20 +489,22 @@ export default function AdminPage() {
                           Stock
                         </label>
                         <input
-                          type="number"
+                          type="text"
                           inputMode="numeric"
-                          value={editForm.stock || 0}
-                          onChange={(e) => setEditForm({ ...editForm, stock: Number(e.target.value) })}
+                          value={editForm.stock}
+                          onChange={(e) => handleEditField('stock', e.target.value)}
                           className={fieldClass}
                         />
                       </div>
 
                       <button
+                        type="button"
                         onClick={() => handleSave(product.id)}
-                        className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-primary px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-blue-700"
+                        disabled={savingId === product.id}
+                        className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-primary px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
                       >
                         <Save className="h-4 w-4" />
-                        Guardar cambios
+                        {savingId === product.id ? 'Guardando...' : 'Guardar cambios'}
                       </button>
                     </div>
                   ) : (
@@ -491,8 +604,8 @@ export default function AdminPage() {
                         <>
                           <td className="px-6 py-4">
                             <select
-                              value={editForm.category || ''}
-                              onChange={(e) => setEditForm({ ...editForm, category: e.target.value })}
+                              value={editForm.category}
+                              onChange={(e) => handleEditField('category', e.target.value)}
                               className="min-w-[180px] rounded border border-border px-2 py-1 outline-none focus:border-primary focus:ring-1 focus:ring-primary"
                             >
                               {categoryOptions.map((category) => (
@@ -504,38 +617,41 @@ export default function AdminPage() {
                           </td>
                           <td className="px-6 py-4">
                             <input
-                              type="number"
+                              type="text"
                               inputMode="decimal"
-                              value={editForm.cost || 0}
-                              onChange={(e) => setEditForm({ ...editForm, cost: Number(e.target.value) })}
+                              value={editForm.cost}
+                              onChange={(e) => handleEditField('cost', e.target.value)}
                               className="w-24 px-2 py-1 border border-border rounded outline-none focus:border-primary focus:ring-1 focus:ring-primary"
                             />
                           </td>
                           <td className="px-6 py-4">
                             <input
-                              type="number"
+                              type="text"
                               inputMode="decimal"
-                              value={editForm.price || 0}
-                              onChange={(e) => setEditForm({ ...editForm, price: Number(e.target.value) })}
+                              value={editForm.price}
+                              onChange={(e) => handleEditField('price', e.target.value)}
                               className="w-24 px-2 py-1 border border-border rounded outline-none focus:border-primary focus:ring-1 focus:ring-primary"
                             />
                           </td>
                           <td className="px-6 py-4">
                             <input
-                              type="number"
+                              type="text"
                               inputMode="numeric"
-                              value={editForm.stock || 0}
-                              onChange={(e) => setEditForm({ ...editForm, stock: Number(e.target.value) })}
+                              value={editForm.stock}
+                              onChange={(e) => handleEditField('stock', e.target.value)}
                               className="w-20 px-2 py-1 border border-border rounded outline-none focus:border-primary focus:ring-1 focus:ring-primary"
                             />
                           </td>
                           <td className="px-6 py-4 text-right">
                             <button
+                              type="button"
                               onClick={() => handleSave(product.id)}
-                              className="text-primary hover:text-blue-700 bg-accent p-2 rounded-lg inline-flex items-center transition-colors"
+                              disabled={savingId === product.id}
+                              className="inline-flex items-center justify-center gap-2 rounded-lg bg-accent px-3 py-2 text-sm font-semibold text-primary transition-colors hover:text-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
                               title="Guardar cambios"
                             >
                               <Save className="w-4 h-4" />
+                              {savingId === product.id ? 'Guardando...' : 'Guardar'}
                             </button>
                           </td>
                         </>
